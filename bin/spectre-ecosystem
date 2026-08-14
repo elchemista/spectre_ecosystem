@@ -1,0 +1,12 @@
+#!/usr/bin/env sh
+set -eu
+
+script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+project_dir=$(dirname -- "$script_dir")
+binary="$project_dir/spectre-ecosystem"
+
+if [ ! -x "$binary" ]; then
+  (cd "$project_dir" && MIX_ENV=prod mix escript.build)
+fi
+
+exec "$binary" "$@"

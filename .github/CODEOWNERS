@@ -1,0 +1,8 @@
+/.github/ @elchemista
+/ecosystem.json @elchemista
+/lib/spectre/ecosystem/github/ @elchemista
+/lib/spectre/ecosystem/cli.ex @elchemista
+/lib/spectre/ecosystem/manifest.ex @elchemista
+/.github/workflows/compatibility.yml @elchemista
+/.github/workflows/watch-core.yml @elchemista
+/templates/ @elchemista
