@@ -2,7 +2,8 @@ name: Watch Spectre core releases
 
 on:
   schedule:
-    - cron: "17 * * * *"
+    # GitHub schedules use UTC; run once per day instead of every hour.
+    - cron: "17 3 * * *"
   workflow_dispatch:
     inputs:
       profile:

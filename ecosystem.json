@@ -3,7 +3,7 @@
   "owner": "elchemista",
   "orchestrator": {
     "repository": "elchemista/spectre_ecosystem",
-    "default_ref": "master",
+    "default_ref": "main",
     "workflow": "compatibility.yml",
     "satellite_workflow": "spectre-compatibility.yml"
   },
@@ -41,14 +41,14 @@
     {
       "name": "spectre_lab",
       "repository": "elchemista/spectre_lab",
-      "default_ref": "master",
+      "default_ref": "main",
       "dependencies": ["spectre", "spectre_ledger"],
       "timeout_minutes": 45
     },
     {
       "name": "spectre_ledger",
       "repository": "elchemista/spectre_ledger",
-      "default_ref": "master",
+      "default_ref": "main",
       "dependencies": ["spectre"],
       "timeout_minutes": 50
     },

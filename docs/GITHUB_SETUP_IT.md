@@ -8,7 +8,7 @@ core continua a occuparsi soltanto del proprio codice e delle proprie release.
 Nel repository `elchemista/spectre_ecosystem`:
 
 1. pubblica il branch di implementazione;
-2. apri una pull request verso `master`;
+2. apri una pull request verso `main`;
 3. attendi il workflow `CI`;
 4. unisci la pull request.
 
@@ -153,12 +153,12 @@ Nel repository centrale:
 4. verifica tag, SHA e campaign ID nel log;
 5. ripeti con `dry_run: false` solo quando la campagna manuale è verde.
 
-Il watcher gira anche al minuto 17 di ogni ora. GitHub può ritardare i workflow
-schedulati nei periodi di carico.
+Il watcher gira una volta al giorno alle 03:17 UTC. GitHub può ritardare i
+workflow schedulati nei periodi di carico.
 
-## 10. Proteggi `master`
+## 10. Proteggi `main`
 
-In **Settings > Branches** crea una regola per `master`:
+In **Settings > Branches** crea una regola per `main`:
 
 1. richiedi una pull request;
 2. richiedi il job `Format, compile, tests and CLI contracts`;
