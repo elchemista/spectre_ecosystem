@@ -1,0 +1,15 @@
+/_build/
+/deps/
+/doc/
+/cover/
+/spectre-ecosystem
+/spectre_ecosystem
+/.elixir_ls/
+/.lexical/
+erl_crash.dump
+*.ez
+*.beam
+*.plt
+*.plt.hash
+campaign-results/
+/tmp/

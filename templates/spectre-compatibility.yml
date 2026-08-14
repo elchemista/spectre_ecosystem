@@ -1,0 +1,66 @@
+name: Spectre core compatibility
+run-name: compatibility:${{ inputs.campaign_id }} core=${{ inputs.spectre_ref }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      spectre_ref:
+        description: Core tag, branch or commit SHA to test
+        required: true
+        type: string
+      spectre_repository:
+        description: Core repository coordinate
+        required: true
+        type: string
+      campaign_id:
+        description: Ecosystem campaign identifier
+        required: true
+        type: string
+      profile:
+        description: Satellite-owned compatibility profile
+        required: true
+        default: compat
+        type: choice
+        options: [compat, full]
+
+permissions:
+  contents: read
+
+jobs:
+  compatibility:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out satellite
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Check out requested core
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          repository: ${{ inputs.spectre_repository }}
+          ref: ${{ inputs.spectre_ref }}
+          path: requested-spectre-core
+          persist-credentials: false
+
+      - name: Set up Erlang/OTP and Elixir
+        uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1
+        with:
+          elixir-version: "1.19.x"
+          otp-version: "28.x"
+
+      - name: Run satellite-owned gates
+        env:
+          MIX_ENV: test
+          SPECTRE_PATH: ${{ github.workspace }}/requested-spectre-core
+          COMPATIBILITY_PROFILE: ${{ inputs.profile }}
+        run: |
+          mix deps.get
+          mix format --check-formatted
+          mix compile --warnings-as-errors
+          if [[ "$COMPATIBILITY_PROFILE" == "full" ]]; then
+            mix test --cover
+          else
+            mix test
+          fi

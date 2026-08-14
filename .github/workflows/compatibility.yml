@@ -1,0 +1,211 @@
+name: Spectre ecosystem compatibility
+run-name: >-
+  compatibility:${{ inputs.campaign_id || format('manual-{0}', github.run_id) }}
+  core=${{ inputs.spectre_ref }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      spectre_ref:
+        description: Exact Spectre tag, branch or commit SHA
+        required: true
+        type: string
+      profile:
+        description: Satellite-owned compatibility profile
+        required: true
+        default: compat
+        type: choice
+        options: [compat, full]
+      packages:
+        description: Comma-separated repository names or all
+        required: true
+        default: all
+        type: string
+      campaign_id:
+        description: Stable campaign identifier
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: compatibility-${{ inputs.campaign_id || inputs.spectre_ref }}
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    name: Validate registry and plan campaign
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+      expected: ${{ steps.plan.outputs.expected }}
+      campaign_id: ${{ steps.values.outputs.campaign_id }}
+      spectre_ref: ${{ steps.values.outputs.spectre_ref }}
+      profile: ${{ steps.values.outputs.profile }}
+    steps:
+      - name: Check out orchestrator
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Set up Erlang/OTP and Elixir
+        uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1
+        with:
+          elixir-version: "1.19.x"
+          otp-version: "28.x"
+
+      - name: Resolve campaign values
+        id: values
+        env:
+          INPUT_CAMPAIGN: ${{ inputs.campaign_id }}
+          INPUT_REF: ${{ inputs.spectre_ref }}
+          INPUT_PROFILE: ${{ inputs.profile }}
+          INPUT_PACKAGES: ${{ inputs.packages }}
+        run: |
+          campaign_id="${INPUT_CAMPAIGN:-manual-${GITHUB_RUN_ID}}"
+          printf 'campaign_id=%s\n' "$campaign_id" >>"$GITHUB_OUTPUT"
+          printf 'spectre_ref=%s\n' "$INPUT_REF" >>"$GITHUB_OUTPUT"
+          printf 'profile=%s\n' "${INPUT_PROFILE:-compat}" >>"$GITHUB_OUTPUT"
+          printf 'packages=%s\n' "${INPUT_PACKAGES:-all}" >>"$GITHUB_OUTPUT"
+
+      - name: Build orchestrator CLI
+        env:
+          MIX_ENV: prod
+        run: mix escript.build
+
+      - name: Build repository matrix
+        id: plan
+        env:
+          CAMPAIGN_ID: ${{ steps.values.outputs.campaign_id }}
+          SPECTRE_REF: ${{ steps.values.outputs.spectre_ref }}
+          PROFILE: ${{ steps.values.outputs.profile }}
+          PACKAGES: ${{ steps.values.outputs.packages }}
+        run: |
+          matrix=$(./spectre-ecosystem plan \
+            --campaign-id "$CAMPAIGN_ID" \
+            --spectre-ref "$SPECTRE_REF" \
+            --profile "$PROFILE" \
+            --packages "$PACKAGES" \
+            --format github-matrix)
+          expected=$(./spectre-ecosystem plan \
+            --campaign-id "$CAMPAIGN_ID" \
+            --spectre-ref "$SPECTRE_REF" \
+            --profile "$PROFILE" \
+            --packages "$PACKAGES" \
+            --format names)
+          printf 'matrix=%s\n' "$matrix" >>"$GITHUB_OUTPUT"
+          printf 'expected=%s\n' "$expected" >>"$GITHUB_OUTPUT"
+
+  compatibility:
+    name: ${{ matrix.name }} / ${{ needs.plan.outputs.profile }}
+    needs: plan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 58
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    steps:
+      - name: Check out orchestrator
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Set up Erlang/OTP and Elixir
+        uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1
+        with:
+          elixir-version: "1.19.x"
+          otp-version: "28.x"
+
+      - name: Create repository-scoped GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.SPECTRE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.SPECTRE_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ matrix.name }}
+          permission-actions: write
+
+      - name: Build orchestrator CLI
+        env:
+          MIX_ENV: prod
+        run: mix escript.build
+
+      - name: Dispatch and wait for repository workflow
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          ./spectre-ecosystem check \
+            --package "${{ matrix.name }}" \
+            --spectre-ref "${{ needs.plan.outputs.spectre_ref }}" \
+            --profile "${{ needs.plan.outputs.profile }}" \
+            --campaign-id "${{ needs.plan.outputs.campaign_id }}" \
+            --timeout-minutes "${{ matrix.timeout_minutes }}" \
+            --result "$RUNNER_TEMP/${{ matrix.name }}.json"
+
+      - name: Upload repository result
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: result-${{ matrix.name }}
+          path: ${{ runner.temp }}/${{ matrix.name }}.json
+          if-no-files-found: warn
+          retention-days: 30
+
+  report:
+    name: Aggregate compatibility report
+    if: always() && needs.plan.result == 'success'
+    needs: [plan, compatibility]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out orchestrator
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Set up Erlang/OTP and Elixir
+        uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1
+        with:
+          elixir-version: "1.19.x"
+          otp-version: "28.x"
+
+      - name: Download repository results
+        continue-on-error: true
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: result-*
+          path: campaign-results
+          merge-multiple: true
+
+      - name: Build orchestrator CLI
+        env:
+          MIX_ENV: prod
+        run: mix escript.build
+
+      - name: Build aggregate report
+        env:
+          EXPECTED: ${{ needs.plan.outputs.expected }}
+        run: |
+          set +e
+          ./spectre-ecosystem report \
+            --results-dir campaign-results \
+            --expected "$EXPECTED" \
+            --format markdown \
+            --output campaign-report.md
+          report_status=$?
+          cat campaign-report.md >>"$GITHUB_STEP_SUMMARY"
+          exit "$report_status"
+
+      - name: Upload campaign report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: campaign-report-${{ needs.plan.outputs.campaign_id }}
+          path: campaign-report.md
+          if-no-files-found: error
+          retention-days: 90
