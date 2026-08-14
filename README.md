@@ -22,8 +22,8 @@ Il confine è intenzionale:
 | `spectre_beam` | `main` | `spectre` |
 | `spectre_directive` | `main` | `spectre` |
 | `spectre_kinetic` | `main` | `spectre` |
-| `spectre_ledger` | `master` | `spectre` |
-| `spectre_lab` | `master` | `spectre`, `spectre_ledger` |
+| `spectre_ledger` | `main` | `spectre` |
+| `spectre_lab` | `main` | `spectre`, `spectre_ledger` |
 | `spectre_lens` | `main` | `spectre` |
 | `spectre_mnemonic` | `main` | `spectre` |
 | `spectre_prism` | `main` | `spectre` |
