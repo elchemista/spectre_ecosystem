@@ -255,7 +255,7 @@ jobs:
     timeout-minutes: 15
     env:
       MIX_ENV: prod
-      STATUS_SITE: ${{ runner.temp }}/spectre-ecosystem-status
+      STATUS_SITE: status-site
     steps:
       - name: Check out ecosystem publisher
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
