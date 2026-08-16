@@ -144,6 +144,9 @@ jobs:
           elixir-version: "1.19.x"
           otp-version: "28.x"
 
+      - name: Add PostgreSQL tools to PATH
+        run: printf '%s\n' "$(pg_config --bindir)" >>"$GITHUB_PATH"
+
       - name: Select project
         id: project
         if: always()
