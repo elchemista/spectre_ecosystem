@@ -2,34 +2,28 @@
 
 ## Confine di fiducia
 
-L'orchestratore tratta manifest, input CLI e risposte GitHub come dati non
-fidati. Non valuta codice dai repository registrati e non accetta comandi nel
-manifest.
+La matrice clona ed esegue codice dai repository pubblici registrati. Per
+questo motivo ogni libreria gira in un runner GitHub-hosted isolato, senza
+secret e con permessi workflow `contents: read`.
 
-I test delle librerie vengono eseguiti esclusivamente dai workflow posseduti da
-quelle librerie. Ogni job centrale crea un token GitHub App limitato a un solo
-repository satellite e lo usa soltanto per inviare e leggere quel workflow.
+I checkout usano `persist-credentials: false`; i comandi Mix non ricevono
+`GITHUB_TOKEN`. Non aggiungere secret, credenziali cloud o runner self-hosted al
+job `compatibility`.
 
-## Credenziali
+Il job `publish` esegue soltanto il codice di `spectre_ecosystem` dal branch
+protetto. Il job `deploy` è l'unico con `pages: write` e `id-token: write`.
 
-- Il CLI legge token solo da `GH_TOKEN` o `GITHUB_TOKEN`.
-- Nessun token è accettato come argomento CLI.
-- Gli errori e i report non includono header, risposte integrali o credenziali.
-- `SPECTRE_APP_PRIVATE_KEY` deve essere un Actions secret del solo repository
-  centrale.
-- `SPECTRE_APP_CLIENT_ID` può essere una Actions variable.
-- I workflow satellite non ricevono la chiave privata della GitHub App.
+## Dati pubblicati
 
-## Permessi minimi
+Gli artifact contengono soltanto nomi repository, SHA, stato, durata e URL del
+run. `status.json` aggiunge versioni pubbliche GitHub e Hex. Header HTTP, token
+e output completo dei test non vengono copiati nel feed.
 
-La GitHub App richiede sui repository satellite:
+## Input
 
-- Actions: read and write;
-- Metadata: read-only.
-
-Non concedere permessi su Contents, Issues, Pull requests o Administration. Il
-watcher usa il token effimero del repository centrale soltanto per
-avviare un altro workflow nello stesso repository.
+`ecosystem.json` è un registry revisionato e non accetta comandi shell. I nomi,
+repository e ref sono validati prima di entrare nella matrice. Il workflow di
+pubblicazione non parte sulle pull request.
 
 ## Segnalazioni
 

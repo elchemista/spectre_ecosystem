@@ -5,14 +5,16 @@
 ### Added
 
 - Registry chiuso dei nove repository satellite richiesti.
-- CLI dependency-free per validazione, piano, dispatch, attesa, doctor e report.
-- Orchestrazione GitHub-to-GitHub con token GitHub App per-repository.
-- Watcher schedulato delle release GitHub del core con deduplicazione per tag.
-- Report aggregato con stato dei job e link ai run satellite.
+- CLI dependency-free per registry, matrice, report e snapshot.
+- Matrice centrale che clona e testa tutti i repository pubblici contro il core
+  richiesto, senza GitHub App o secret.
+- Snapshot JSON pubblico con risultati di compatibilità e versioni Hex/GitHub,
+  distribuito giornalmente tramite GitHub Pages.
 - Documentazione italiana per configurazione, gestione e onboarding.
 
 ### Architecture
 
 - Il core resta completamente indipendente dall'ecosistema.
-- I workflow satellite possiedono l'esecuzione e i gate di compatibilità.
-- Il repository centrale non contiene un runner locale per le librerie.
+- Il core resta una dipendenza normale fuori dalla CI centrale.
+- Le librerie espongono soltanto l'override esplicito `SPECTRE_PATH`.
+- Il repository centrale possiede la matrice e la pubblicazione dello stato.

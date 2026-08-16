@@ -5,18 +5,21 @@ defmodule Spectre.Ecosystem.CLITest do
 
   alias Spectre.Ecosystem.CLI
   alias Spectre.Ecosystem.JSON
+  alias Spectre.Ecosystem.Manifest
 
   @manifest Path.expand("../ecosystem.json", __DIR__)
   @moduletag :tmp_dir
 
-  test "help and version expose a remote-only command contract" do
-    assert capture_stdout(fn -> assert CLI.run([]) == 0 end) =~ "Independent GitHub"
-
-    check_help = capture_stdout(fn -> assert CLI.run(["help", "check"]) == 0 end)
-    assert check_help =~ "dispatches"
-    assert check_help =~ "does not run Mix commands"
+  test "help and version expose the public status command contract" do
+    help = capture_stdout(fn -> assert CLI.run([]) == 0 end)
+    assert help =~ "Public ecosystem compatibility status"
+    assert help =~ "snapshot --results-dir PATH"
+    assert capture_stdout(fn -> assert CLI.run(["help", "check"]) == 0 end) =~ "Usage:"
     assert capture_stdout(fn -> assert CLI.run(["version"]) == 0 end) =~ "0.1.0"
     assert capture_stderr(fn -> assert CLI.run(["missing"]) == 2 end) =~ "unknown_command"
+
+    assert capture_stderr(fn -> assert CLI.run(["snapshot", "--manifest", @manifest]) == 1 end) =~
+             "missing_option"
   end
 
   test "validate, list and plan expose repository coordinates only" do
@@ -77,6 +80,24 @@ defmodule Spectre.Ecosystem.CLITest do
     assert entry["profile"] == "compat"
     refute Map.has_key?(entry, "runner")
     refute Map.has_key?(entry, "gates")
+
+    names_with_core =
+      capture_stdout(fn ->
+        assert CLI.run([
+                 "plan",
+                 "--manifest",
+                 @manifest,
+                 "--spectre-ref",
+                 "abc123",
+                 "--packages",
+                 "spectre_ledger",
+                 "--include-core",
+                 "--format",
+                 "names"
+               ]) == 0
+      end)
+
+    assert String.trim(names_with_core) == "spectre,spectre_ledger"
   end
 
   test "check and dispatch require GitHub authentication before remote work" do
@@ -156,6 +177,68 @@ defmodule Spectre.Ecosystem.CLITest do
 
     assert output =~ "manifest: ok"
     refute output =~ "repository:elchemista"
+  end
+
+  test "snapshot writes website-ready status JSON", %{tmp_dir: tmp_dir} do
+    github_api = "http://127.0.0.1:1"
+
+    {hex_api, hex_server} =
+      start_server(10, fn request ->
+        if request =~ "GET /packages/spectre HTTP" do
+          json(200, %{"latest_stable_version" => "0.3.2"})
+        else
+          json(404, %{"message" => "Not Found"})
+        end
+      end)
+
+    assert {:ok, manifest} = Manifest.load(@manifest)
+    results_dir = Path.join(tmp_dir, "results")
+    File.mkdir_p!(results_dir)
+
+    Enum.each([manifest.core | Manifest.ordered_packages(manifest)], fn component ->
+      result = %{
+        "schema" => 1,
+        "package" => component.name,
+        "repository" => component.repository,
+        "profile" => "compat",
+        "status" => "passed",
+        "head_sha" => "abc123",
+        "github_version" => "0.3.0",
+        "spectre_sha" => "abc123",
+        "duration_ms" => 1_000,
+        "run_url" => "https://github.test/runs/1",
+        "gates" => []
+      }
+
+      File.write!(Path.join(results_dir, "#{component.name}.json"), JSON.encode(result))
+    end)
+
+    output = Path.join(tmp_dir, "site/status.json")
+
+    with_apis(github_api, hex_api, fn ->
+      assert CLI.run([
+               "snapshot",
+               "--manifest",
+               @manifest,
+               "--results-dir",
+               results_dir,
+               "--output",
+               output
+             ]) == 0
+    end)
+
+    assert {:ok, snapshot} = output |> File.read!() |> JSON.decode()
+    assert snapshot["status"] == "passing"
+    assert snapshot["summary"]["total"] == 10
+    assert length(snapshot["libraries"]) == 10
+
+    spectre = Enum.find(snapshot["libraries"], &(&1["name"] == "spectre"))
+    assert spectre["hex_version"] == "0.3.2"
+    assert spectre["github_version"] == "0.3.0"
+    assert spectre["version_source"] == "hex"
+    assert spectre["check"]["source"] == "compatibility"
+
+    await_server(hex_server)
   end
 
   test "check dispatches and observes the satellite workflow through GitHub only", %{
@@ -624,6 +707,26 @@ defmodule Spectre.Ecosystem.CLITest do
     after
       restore_env("GH_TOKEN", previous_token)
       restore_env("GITHUB_API_URL", previous_api)
+    end
+  end
+
+  defp with_apis(github_api, hex_api, fun) do
+    previous_gh_token = System.get_env("GH_TOKEN")
+    previous_github_token = System.get_env("GITHUB_TOKEN")
+    previous_github_api = System.get_env("GITHUB_API_URL")
+    previous_hex_api = System.get_env("HEX_API_URL")
+
+    try do
+      System.delete_env("GH_TOKEN")
+      System.delete_env("GITHUB_TOKEN")
+      System.put_env("GITHUB_API_URL", github_api)
+      System.put_env("HEX_API_URL", hex_api)
+      fun.()
+    after
+      restore_env("GH_TOKEN", previous_gh_token)
+      restore_env("GITHUB_TOKEN", previous_github_token)
+      restore_env("GITHUB_API_URL", previous_github_api)
+      restore_env("HEX_API_URL", previous_hex_api)
     end
   end
 

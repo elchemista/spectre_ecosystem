@@ -1,28 +1,39 @@
-name: Spectre ecosystem compatibility
+name: Check and publish ecosystem
 run-name: >-
-  compatibility:${{ inputs.campaign_id || format('manual-{0}', github.run_id) }}
-  core=${{ inputs.spectre_ref }}
+  ecosystem:${{ inputs.campaign_id || format('run-{0}', github.run_id) }}
+  core=${{ inputs.spectre_ref || 'main' }}
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/compatibility.yml
+      - ecosystem.json
+      - lib/**
+      - mix.exs
+      - status/**
+  schedule:
+    - cron: "37 4 * * *"
   workflow_dispatch:
     inputs:
       spectre_ref:
-        description: Exact Spectre tag, branch or commit SHA
-        required: true
+        description: Spectre tag, branch or commit to test
+        required: false
+        default: main
         type: string
       profile:
-        description: Satellite-owned compatibility profile
+        description: Test profile
         required: true
         default: compat
         type: choice
         options: [compat, full]
       packages:
-        description: Comma-separated repository names or all
+        description: Comma-separated library names or all
         required: true
         default: all
         type: string
       campaign_id:
-        description: Stable campaign identifier
+        description: Optional run identifier
         required: false
         default: ""
         type: string
@@ -31,22 +42,21 @@ permissions:
   contents: read
 
 concurrency:
-  group: compatibility-${{ inputs.campaign_id || inputs.spectre_ref }}
+  group: spectre-ecosystem-pages
   cancel-in-progress: false
 
 jobs:
   plan:
-    name: Validate registry and plan campaign
+    name: Build library matrix
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     outputs:
       matrix: ${{ steps.plan.outputs.matrix }}
       expected: ${{ steps.plan.outputs.expected }}
-      campaign_id: ${{ steps.values.outputs.campaign_id }}
-      spectre_ref: ${{ steps.values.outputs.spectre_ref }}
       profile: ${{ steps.values.outputs.profile }}
+      spectre_ref: ${{ steps.values.outputs.spectre_ref }}
     steps:
-      - name: Check out orchestrator
+      - name: Check out ecosystem registry
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -57,26 +67,21 @@ jobs:
           elixir-version: "1.19.x"
           otp-version: "28.x"
 
-      - name: Resolve campaign values
+      - name: Resolve inputs
         id: values
         env:
+          INPUT_REF: ${{ inputs.spectre_ref || 'main' }}
+          INPUT_PROFILE: ${{ inputs.profile || 'compat' }}
+          INPUT_PACKAGES: ${{ inputs.packages || 'all' }}
           INPUT_CAMPAIGN: ${{ inputs.campaign_id }}
-          INPUT_REF: ${{ inputs.spectre_ref }}
-          INPUT_PROFILE: ${{ inputs.profile }}
-          INPUT_PACKAGES: ${{ inputs.packages }}
         run: |
-          campaign_id="${INPUT_CAMPAIGN:-manual-${GITHUB_RUN_ID}}"
+          campaign_id="${INPUT_CAMPAIGN:-run-${GITHUB_RUN_ID}}"
           printf 'campaign_id=%s\n' "$campaign_id" >>"$GITHUB_OUTPUT"
           printf 'spectre_ref=%s\n' "$INPUT_REF" >>"$GITHUB_OUTPUT"
-          printf 'profile=%s\n' "${INPUT_PROFILE:-compat}" >>"$GITHUB_OUTPUT"
-          printf 'packages=%s\n' "${INPUT_PACKAGES:-all}" >>"$GITHUB_OUTPUT"
+          printf 'profile=%s\n' "$INPUT_PROFILE" >>"$GITHUB_OUTPUT"
+          printf 'packages=%s\n' "$INPUT_PACKAGES" >>"$GITHUB_OUTPUT"
 
-      - name: Build orchestrator CLI
-        env:
-          MIX_ENV: prod
-        run: mix escript.build
-
-      - name: Build repository matrix
+      - name: Build matrix
         id: plan
         env:
           CAMPAIGN_ID: ${{ steps.values.outputs.campaign_id }}
@@ -84,34 +89,53 @@ jobs:
           PROFILE: ${{ steps.values.outputs.profile }}
           PACKAGES: ${{ steps.values.outputs.packages }}
         run: |
+          mix escript.build
           matrix=$(./spectre-ecosystem plan \
-            --campaign-id "$CAMPAIGN_ID" \
             --spectre-ref "$SPECTRE_REF" \
             --profile "$PROFILE" \
             --packages "$PACKAGES" \
+            --campaign-id "$CAMPAIGN_ID" \
+            --include-core \
             --format github-matrix)
           expected=$(./spectre-ecosystem plan \
-            --campaign-id "$CAMPAIGN_ID" \
             --spectre-ref "$SPECTRE_REF" \
             --profile "$PROFILE" \
             --packages "$PACKAGES" \
+            --campaign-id "$CAMPAIGN_ID" \
+            --include-core \
             --format names)
           printf 'matrix=%s\n' "$matrix" >>"$GITHUB_OUTPUT"
           printf 'expected=%s\n' "$expected" >>"$GITHUB_OUTPUT"
 
   compatibility:
-    name: ${{ matrix.name }} / ${{ needs.plan.outputs.profile }}
+    name: ${{ matrix.name }}
     needs: plan
     runs-on: ubuntu-24.04
-    timeout-minutes: 58
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       max-parallel: 4
       matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    env:
+      MIX_ENV: test
     steps:
-      - name: Check out orchestrator
+      - name: Check out requested Spectre core
+        id: core
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          repository: ${{ github.repository_owner }}/spectre
+          ref: ${{ needs.plan.outputs.spectre_ref }}
+          path: checkouts/spectre
+          persist-credentials: false
+
+      - name: Check out library
+        id: library
+        if: matrix.name != 'spectre'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ matrix.repository }}
+          ref: ${{ matrix.default_ref }}
+          path: checkouts/library
           persist-credentials: false
 
       - name: Set up Erlang/OTP and Elixir
@@ -120,50 +144,120 @@ jobs:
           elixir-version: "1.19.x"
           otp-version: "28.x"
 
-      - name: Create repository-scoped GitHub App token
-        id: app-token
-        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
-        with:
-          client-id: ${{ vars.SPECTRE_APP_CLIENT_ID }}
-          private-key: ${{ secrets.SPECTRE_APP_PRIVATE_KEY }}
-          owner: ${{ github.repository_owner }}
-          repositories: ${{ matrix.name }}
-          permission-actions: write
-
-      - name: Build orchestrator CLI
+      - name: Select project
+        id: project
+        if: always()
         env:
-          MIX_ENV: prod
-        run: mix escript.build
-
-      - name: Dispatch and wait for repository workflow
-        env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          LIBRARY_NAME: ${{ matrix.name }}
+          CORE_SHA: ${{ steps.core.outputs.commit }}
+          LIBRARY_SHA: ${{ steps.library.outputs.commit }}
         run: |
-          ./spectre-ecosystem check \
-            --package "${{ matrix.name }}" \
-            --spectre-ref "${{ needs.plan.outputs.spectre_ref }}" \
-            --profile "${{ needs.plan.outputs.profile }}" \
-            --campaign-id "${{ needs.plan.outputs.campaign_id }}" \
-            --timeout-minutes "${{ matrix.timeout_minutes }}" \
-            --result "$RUNNER_TEMP/${{ matrix.name }}.json"
+          if [[ "$LIBRARY_NAME" == "spectre" ]]; then
+            printf 'path=%s/checkouts/spectre\n' "$GITHUB_WORKSPACE" >>"$GITHUB_OUTPUT"
+            printf 'sha=%s\n' "$CORE_SHA" >>"$GITHUB_OUTPUT"
+          else
+            printf 'path=%s/checkouts/library\n' "$GITHUB_WORKSPACE" >>"$GITHUB_OUTPUT"
+            printf 'sha=%s\n' "$LIBRARY_SHA" >>"$GITHUB_OUTPUT"
+          fi
 
-      - name: Upload repository result
+      - name: Verify Spectre path override
+        if: matrix.name != 'spectre'
+        working-directory: ${{ steps.project.outputs.path }}
+        env:
+          SPECTRE_PATH: ${{ github.workspace }}/checkouts/spectre
+        run: mix deps | grep -F -- "* spectre ($SPECTRE_PATH) (mix)"
+
+      - name: Compile and test against requested Spectre
+        id: check
+        continue-on-error: true
+        working-directory: ${{ steps.project.outputs.path }}
+        env:
+          SPECTRE_PATH: ${{ github.workspace }}/checkouts/spectre
+          TEST_ARGS: ${{ needs.plan.outputs.profile == 'full' && '--cover' || '' }}
+        run: |
+          started=$(date +%s)
+          set +e
+          mix deps.get && \
+            mix compile --warnings-as-errors && \
+            mix test $TEST_ARGS
+          exit_code=$?
+          finished=$(date +%s)
+          printf 'duration_ms=%s\n' "$(((finished - started) * 1000))" >>"$GITHUB_OUTPUT"
+          exit "$exit_code"
+
+      - name: Record result
+        if: always()
+        env:
+          LIBRARY_NAME: ${{ matrix.name }}
+          REPOSITORY: ${{ matrix.repository }}
+          PROFILE: ${{ needs.plan.outputs.profile }}
+          SPECTRE_REF: ${{ needs.plan.outputs.spectre_ref }}
+          SPECTRE_SHA: ${{ steps.core.outputs.commit }}
+          HEAD_SHA: ${{ steps.project.outputs.sha }}
+          PROJECT_PATH: ${{ steps.project.outputs.path }}
+          CHECK_OUTCOME: ${{ steps.check.outcome }}
+          DURATION_MS: ${{ steps.check.outputs.duration_ms }}
+        run: |
+          status=failed
+          conclusion=failure
+          if [[ "$CHECK_OUTCOME" == "success" ]]; then
+            status=passed
+            conclusion=success
+          fi
+          duration_ms="${DURATION_MS:-0}"
+          run_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          github_version=""
+          if [[ -f "$PROJECT_PATH/mix.exs" ]]; then
+            github_version=$(sed -nE 's/^[[:space:]]*@version[[:space:]]+"([^"]+)".*/\1/p' \
+              "$PROJECT_PATH/mix.exs" | head -n 1)
+          fi
+          mkdir -p "$RUNNER_TEMP/result"
+          jq -n \
+            --arg package "$LIBRARY_NAME" \
+            --arg repository "$REPOSITORY" \
+            --arg profile "$PROFILE" \
+            --arg spectre_ref "$SPECTRE_REF" \
+            --arg spectre_sha "$SPECTRE_SHA" \
+            --arg head_sha "$HEAD_SHA" \
+            --arg github_version "$github_version" \
+            --arg status "$status" \
+            --arg conclusion "$conclusion" \
+            --arg run_url "$run_url" \
+            --argjson duration_ms "$duration_ms" \
+            '{schema: 1, package: $package, repository: $repository,
+              profile: $profile, spectre_ref: $spectre_ref,
+              spectre_sha: $spectre_sha, head_sha: $head_sha,
+              github_version: $github_version,
+              status: $status, conclusion: $conclusion,
+              run_url: $run_url, duration_ms: $duration_ms,
+              gates: [{gate: "compile and test", status: $status,
+                conclusion: $conclusion, url: $run_url}]}' \
+            >"$RUNNER_TEMP/result/$LIBRARY_NAME.json"
+
+      - name: Upload result
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: result-${{ matrix.name }}
-          path: ${{ runner.temp }}/${{ matrix.name }}.json
-          if-no-files-found: warn
+          path: ${{ runner.temp }}/result/${{ matrix.name }}.json
+          if-no-files-found: error
           retention-days: 30
 
-  report:
-    name: Aggregate compatibility report
+      - name: Fail incompatible library
+        if: always() && steps.check.outcome != 'success'
+        run: exit 1
+
+  publish:
+    name: Build public status
     if: always() && needs.plan.result == 'success'
     needs: [plan, compatibility]
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 15
+    env:
+      MIX_ENV: prod
+      STATUS_SITE: ${{ runner.temp }}/spectre-ecosystem-status
     steps:
-      - name: Check out orchestrator
+      - name: Check out ecosystem publisher
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -174,38 +268,54 @@ jobs:
           elixir-version: "1.19.x"
           otp-version: "28.x"
 
-      - name: Download repository results
+      - name: Download compatibility results
         continue-on-error: true
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           pattern: result-*
-          path: campaign-results
+          path: compatibility-results
           merge-multiple: true
 
-      - name: Build orchestrator CLI
-        env:
-          MIX_ENV: prod
-        run: mix escript.build
+      - name: Generate JSON and page
+        run: |
+          mkdir -p compatibility-results "$STATUS_SITE"
+          mix escript.build
+          ./spectre-ecosystem snapshot \
+            --results-dir compatibility-results \
+            --output "$STATUS_SITE/status.json"
+          cp status/index.html "$STATUS_SITE/index.html"
 
-      - name: Build aggregate report
+      - name: Add run summary
         env:
           EXPECTED: ${{ needs.plan.outputs.expected }}
         run: |
           set +e
           ./spectre-ecosystem report \
-            --results-dir campaign-results \
+            --results-dir compatibility-results \
             --expected "$EXPECTED" \
             --format markdown \
-            --output campaign-report.md
-          report_status=$?
-          cat campaign-report.md >>"$GITHUB_STEP_SUMMARY"
-          exit "$report_status"
+            --output "$RUNNER_TEMP/report.md"
+          cat "$RUNNER_TEMP/report.md" >>"$GITHUB_STEP_SUMMARY"
+          exit 0
 
-      - name: Upload campaign report
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - name: Upload GitHub Pages artifact
+        uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4
         with:
-          name: campaign-report-${{ needs.plan.outputs.campaign_id }}
-          path: campaign-report.md
-          if-no-files-found: error
-          retention-days: 90
+          path: ${{ env.STATUS_SITE }}
+
+  deploy:
+    name: Deploy public status
+    if: always() && needs.publish.result == 'success'
+    needs: publish
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4

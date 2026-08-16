@@ -1,73 +1,52 @@
 # Architecture
 
-## Responsabilità
+## Flusso centrale
 
-`spectre_ecosystem` possiede soltanto:
-
-- registry dei repository e del loro ordine logico;
-- osservazione delle release GitHub del core;
-- invio dei workflow satellite;
-- polling di run e job;
-- aggregazione dei risultati.
-
-Non possiede:
-
-- codice o configurazione del core;
-- strategia di test delle librerie;
-- runtime, database o servizi dei satellite;
-- checkout e patch delle dipendenze;
-- ciclo di distribuzione dei repository.
-
-## Ownership
+`compatibility.yml` è l'unico workflow di compatibilità e pubblicazione:
 
 ```text
-Core repository
-  └── source, tag e release del core
-
-Ecosystem repository
-  └── registry, watch, dispatch, wait, report
-
-Satellite repository
-  └── exact-core checkout, dependency override, services e test gates
+ecosystem.json
+      │
+      ▼
+matrice: core + librerie pubbliche
+      │ checkout di spectre e della libreria
+      │ SPECTRE_PATH=checkout del core
+      ▼
+mix deps.get → compile → test
+      │
+      ▼
+artifact JSON per libreria
+      │
+      ▼
+versioni GitHub + Hex → status.json → GitHub Pages
 ```
 
-La dipendenza operativa va dal centrale verso le API GitHub. Non esiste alcuna
-dipendenza runtime dal core verso l'orchestratore.
+La matrice usa runner separati e non condivide build o dipendenze tra
+librerie. `fail-fast` è disabilitato per ottenere sempre un risultato completo.
 
-## Identità della campagna
+## Confine delle dipendenze
 
-Le campagne manuali usano un ID esplicito o generato. Il watcher usa
-`core-release-<tag>`. Il CLI include lo stesso ID negli input di ogni satellite;
-il `run-name` remoto lo espone e consente la correlazione senza stato globale.
-La deduplicazione del watcher pagina fino a 1.000 run centrali e confronta l'ID
-completo, evitando sia l'evizione rapida sia collisioni per prefisso.
+Ogni libreria conserva la normale dipendenza Hex quando `SPECTRE_PATH` non è
+impostata. Durante la compatibilità, la stessa dipendenza punta al checkout
+centrale con `path:` e `override: true`. Il workflow non riscrive `mix.exs`.
 
-La release viene prima risolta a SHA. Il report registra lo SHA passato ai
-satellite, evitando che un branch mobile cambi significato durante la matrice.
+## Stato pubblico
 
-## Delivery e osservazione
+Il risultato del test determina `status`. Il generatore legge `mix.exs` allo
+SHA realmente testato, interroga soltanto Hex e pubblica entrambe le versioni:
 
-Il CLI chiede all'API di dispatch i dettagli del run. Poiché installazioni o
-versioni API differenti possono ancora rispondere senza un ID, la correlazione
-ha un fallback esplicito:
+- `hex_version` è `null` quando il package non esiste su Hex;
+- `github_version` è sempre la versione del checkout GitHub;
+- `version` preferisce Hex e usa GitHub come fallback.
 
-1. invia `workflow_dispatch`;
-2. usa immediatamente il run ID restituito, quando presente;
-3. altrimenti cerca il `campaign_id` nei run recenti del workflow target;
-4. applica un timeout alla fase di discovery;
-5. attende il completamento del run trovato;
-6. legge i job e produce un risultato schema 1.
-
-Un errore HTTP, un timeout o un risultato non-success produce un risultato
-fallito; non viene promosso a successo ambiguo.
+Un artifact mancante produce `unknown`; un test fallito produce `failing`.
+Anche con librerie fallite, il job di pubblicazione usa gli artifact disponibili
+e aggiorna la pagina.
 
 ## Sicurezza
 
-La matrice crea un token GitHub App nuovo per ogni repository target. Il token
-non viene caricato come artifact e non viene inoltrato al workflow satellite.
-Il satellite usa il proprio `GITHUB_TOKEN` con i permessi dichiarati nel proprio
-file.
-
-Il manifest è chiuso: non contiene shell, path, variabili ambiente o nomi di
-runner. L'aggiunta di un repository non può quindi introdurre un comando nel
-processo centrale.
+Tutti i repository sono pubblici. Il workflow ha soltanto il permesso
+`contents: read`; il flusso giornaliero non chiama la GitHub API, nessun
+workflow remoto viene avviato e nessuna credenziale cross-repository viene
+creata. Il deploy usa `pages: write` e `id-token: write` soltanto nel job
+dedicato.

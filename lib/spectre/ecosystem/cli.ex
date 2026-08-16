@@ -1,18 +1,16 @@
 defmodule Spectre.Ecosystem.CLI do
   @moduledoc """
-  Command-line entrypoint for GitHub compatibility campaigns.
-
-  The CLI never checks out or executes satellite source. A compatibility check
-  dispatches the workflow owned by the selected repository and waits for that
-  GitHub Actions run to finish.
+  Command-line entrypoint for ecosystem metadata and compatibility campaigns.
   """
 
   alias Spectre.Ecosystem
   alias Spectre.Ecosystem.Campaign
   alias Spectre.Ecosystem.GitHub.Client
+  alias Spectre.Ecosystem.Hex.Client, as: HexClient
   alias Spectre.Ecosystem.JSON
   alias Spectre.Ecosystem.Manifest
   alias Spectre.Ecosystem.Report
+  alias Spectre.Ecosystem.Status
 
   @formats ~w(table json github-matrix names markdown)
   @discovery_interval 2_000
@@ -20,22 +18,17 @@ defmodule Spectre.Ecosystem.CLI do
   @help """
   Spectre Ecosystem #{Ecosystem.version()}
 
-  Independent GitHub compatibility orchestrator.
+  Public ecosystem compatibility status.
 
   Usage:
     spectre-ecosystem validate [--manifest PATH] [--format table|json]
     spectre-ecosystem list [--manifest PATH] [--format table|json]
-    spectre-ecosystem plan --spectre-ref REF [--packages all|a,b] [--profile compat|full]
-    spectre-ecosystem check (--package NAME | --all) --spectre-ref REF [options]
-    spectre-ecosystem dispatch --spectre-ref REF [options]
-    spectre-ecosystem status --campaign-id ID [--format table|json]
-    spectre-ecosystem watch [--profile full] [--packages all] [--dry-run]
-    spectre-ecosystem doctor [--github] [--format table|json]
+    spectre-ecosystem plan --spectre-ref REF [--packages all|a,b] [--include-core]
     spectre-ecosystem report --results-dir PATH [options]
+    spectre-ecosystem snapshot --results-dir PATH [--output PATH]
     spectre-ecosystem version
 
-  GitHub credentials are read from GH_TOKEN or GITHUB_TOKEN. The core repository
-  is observed only; every satellite owns and executes its compatibility workflow.
+  Public status generation needs no cross-repository write permission.
   """
 
   @check_help """
@@ -75,6 +68,7 @@ defmodule Spectre.Ecosystem.CLI do
   def run(["watch" | args]), do: watch_command(args)
   def run(["doctor" | args]), do: doctor_command(args)
   def run(["report" | args]), do: report_command(args)
+  def run(["snapshot" | args]), do: snapshot_command(args)
   def run([command | _args]), do: usage_error({:unknown_command, command})
 
   defp validate_command(args) do
@@ -120,7 +114,8 @@ defmodule Spectre.Ecosystem.CLI do
       profile: :string,
       packages: :string,
       campaign_id: :string,
-      format: :string
+      format: :string,
+      include_core: :boolean
     ]
 
     with {:ok, options} <- parse(args, strict: switches),
@@ -128,8 +123,13 @@ defmodule Spectre.Ecosystem.CLI do
          {:ok, spectre_ref} <- required_option(options, :spectre_ref),
          {:ok, profile} <- profile(manifest, options),
          {:ok, campaign_id} <- campaign_id(options),
-         {:ok, packages} <- selected_packages(manifest, Keyword.get(options, :packages, "all")),
+         {:ok, selected} <- selected_packages(manifest, Keyword.get(options, :packages, "all")),
          {:ok, format} <- selected_format(options, @formats -- ["markdown"], "table") do
+      packages =
+        if Keyword.get(options, :include_core, false),
+          do: [manifest.core | selected],
+          else: selected
+
       plan = plan_data(manifest, packages, spectre_ref, profile, campaign_id)
       render_plan(plan, format)
     else
@@ -313,6 +313,38 @@ defmodule Spectre.Ecosystem.CLI do
       if report["status"] == "passed", do: 0, else: 1
     else
       {:error, reason} -> command_error(reason)
+    end
+  end
+
+  defp snapshot_command(args) do
+    with {:ok, options} <-
+           parse(args,
+             strict: [manifest: :string, results_dir: :string, output: :string]
+           ),
+         {:ok, manifest} <- load_manifest(options),
+         {:ok, directory} <- required_option(options, :results_dir),
+         {:ok, results} <- Report.load_directory(directory),
+         {:ok, snapshot} <-
+           Status.build(manifest, Client.new(), HexClient.new(), results: results),
+         bytes = JSON.encode_pretty(snapshot),
+         :ok <- write_snapshot(bytes, Keyword.get(options, :output)) do
+      0
+    else
+      {:error, reason} -> command_error(reason)
+    end
+  end
+
+  defp write_snapshot(bytes, nil) do
+    IO.write(bytes)
+    :ok
+  end
+
+  defp write_snapshot(bytes, path) do
+    with :ok <- File.mkdir_p(Path.dirname(path)),
+         :ok <- File.write(path, bytes) do
+      :ok
+    else
+      {:error, reason} -> {:error, {:snapshot_write_failed, classify_file(reason)}}
     end
   end
 

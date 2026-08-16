@@ -1,10 +1,9 @@
 defmodule Spectre.Ecosystem.Manifest do
   @moduledoc """
-  Loads the reviewed GitHub repository registry.
+  Loads the reviewed, data-only GitHub repository registry.
 
-  The registry is closed and data-only. It contains repository coordinates,
-  workflow ownership and dependency ordering; it contains no local checkout or
-  package-execution configuration.
+  It contains repository coordinates and dependency ordering, but no shell
+  commands or executable package configuration.
   """
 
   alias __MODULE__.Package

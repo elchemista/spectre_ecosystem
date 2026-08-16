@@ -22,7 +22,7 @@ defmodule Spectre.Ecosystem.GitHubClientTest do
 
   test "calls repository, release, commit and workflow endpoints" do
     {api, server} =
-      start_server(9, fn request ->
+      start_server(11, fn request ->
         cond do
           request =~ "GET /repos/elchemista/spectre HTTP" ->
             json(200, %{"default_branch" => "main", "topics" => []})
@@ -32,6 +32,17 @@ defmodule Spectre.Ecosystem.GitHubClientTest do
 
           request =~ "GET /repos/elchemista/spectre/commits/v0.3.1 HTTP" ->
             json(200, %{"sha" => "abc123"})
+
+          request =~ "GET /repos/elchemista/spectre/contents/mix.exs?" ->
+            json(200, %{
+              "encoding" => "base64",
+              "content" => Base.encode64("@version \"0.3.1\"\n")
+            })
+
+          request =~ "GET /repos/elchemista/spectre/actions/workflows/ci.yml/runs?" ->
+            assert request =~ "branch=main"
+            assert request =~ "event=push"
+            json(200, %{"workflow_runs" => [%{"id" => 12, "conclusion" => "success"}]})
 
           request =~
               "GET /repos/elchemista/spectre_beam/actions/workflows/spectre-compatibility.yml HTTP" ->
@@ -65,6 +76,12 @@ defmodule Spectre.Ecosystem.GitHubClientTest do
     assert {:ok, %{"default_branch" => "main"}} = Client.repository(client, "elchemista/spectre")
     assert {:ok, %{"tag_name" => "v0.3.1"}} = Client.latest_release(client, "elchemista/spectre")
     assert {:ok, "abc123"} = Client.resolve_commit(client, "elchemista/spectre", "v0.3.1")
+
+    assert {:ok, "@version \"0.3.1\"\n"} =
+             Client.file_contents(client, "elchemista/spectre", "mix.exs", "abc123")
+
+    assert {:ok, %{"id" => 12}} =
+             Client.latest_workflow_run(client, "elchemista/spectre", "ci.yml", "main")
 
     assert {:ok, %{"path" => ".github/workflows/spectre-compatibility.yml"}} =
              Client.workflow(
@@ -102,6 +119,27 @@ defmodule Spectre.Ecosystem.GitHubClientTest do
 
     assert {:ok, [%{"name" => "test"}]} =
              Client.jobs(client, "elchemista/spectre_ecosystem", 10)
+
+    await_server(server)
+  end
+
+  test "handles empty workflow histories and malformed repository files" do
+    {api, server} =
+      start_server(2, fn request ->
+        if request =~ "/contents/" do
+          json(200, %{"encoding" => "base64", "content" => "not base64!"})
+        else
+          json(200, %{"workflow_runs" => []})
+        end
+      end)
+
+    client = Client.new(api: api)
+
+    assert Client.file_contents(client, "elchemista/spectre", "mix.exs", "main") ==
+             {:error, :invalid_github_file}
+
+    assert Client.latest_workflow_run(client, "elchemista/spectre", "ci.yml", "main") ==
+             {:ok, nil}
 
     await_server(server)
   end

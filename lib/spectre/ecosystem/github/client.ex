@@ -63,6 +63,52 @@ defmodule Spectre.Ecosystem.GitHub.Client do
     end
   end
 
+  @doc "Reads one repository file at an explicit ref."
+  @spec file_contents(t(), String.t(), String.t(), String.t()) ::
+          {:ok, binary()} | {:error, term()}
+  def file_contents(client, repository, path, ref) do
+    encoded_path =
+      path
+      |> String.split("/", trim: true)
+      |> Enum.map_join("/", &URI.encode_www_form/1)
+
+    query = URI.encode_query(%{"ref" => ref})
+
+    with {:ok, %{"content" => content, "encoding" => "base64"}}
+         when is_binary(content) <-
+           request(client, :get, "/repos/#{repository}/contents/#{encoded_path}?#{query}"),
+         {:ok, bytes} <- content |> String.replace(~r/\s+/, "") |> Base.decode64() do
+      {:ok, bytes}
+    else
+      {:error, reason} -> {:error, reason}
+      _invalid -> {:error, :invalid_github_file}
+    end
+  end
+
+  @doc "Gets the latest push run for a workflow on one branch."
+  @spec latest_workflow_run(t(), String.t(), String.t(), String.t()) ::
+          {:ok, map() | nil} | {:error, term()}
+  def latest_workflow_run(client, repository, workflow, branch) do
+    query =
+      URI.encode_query(%{
+        "branch" => branch,
+        "event" => "push",
+        "per_page" => "1"
+      })
+
+    with {:ok, %{"workflow_runs" => runs}} when is_list(runs) <-
+           request(
+             client,
+             :get,
+             "/repos/#{repository}/actions/workflows/#{workflow}/runs?#{query}"
+           ) do
+      {:ok, List.first(runs)}
+    else
+      {:error, reason} -> {:error, reason}
+      _invalid -> {:error, :invalid_github_response}
+    end
+  end
+
   @doc "Dispatches the orchestrator compatibility workflow."
   @spec dispatch_workflow(t(), String.t(), String.t(), String.t(), map()) ::
           {:ok, map() | nil} | {:error, term()}

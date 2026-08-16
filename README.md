@@ -1,155 +1,101 @@
 # Spectre Ecosystem
 
-`spectre_ecosystem` è l'orchestratore indipendente dei test di compatibilità
-dell'ecosistema Spectre. Osserva le release GitHub del core, invia un
-`workflow_dispatch` ai repository satellite e raccoglie i risultati di GitHub
-Actions.
+`spectre_ecosystem` controlla ogni giorno che le librerie Spectre pubbliche
+compilino e passino i test insieme al core richiesto. Il risultato viene
+pubblicato come pagina HTML e come JSON utilizzabile da qualsiasi sito.
 
-Il confine è intenzionale:
+Non servono GitHub App, PAT o secret: il workflow clona repository pubblici e
+usa soltanto `contents: read`.
 
-- `spectre` non dipende dall'orchestratore e non contiene hook verso di esso;
-- l'orchestratore non modifica, clona o esegue il codice dei satellite;
-- ogni satellite possiede il proprio workflow e decide quali test eseguire;
-- questo repository conserva solo coordinate GitHub, stato dei run e report;
-- il ciclo di distribuzione delle librerie resta fuori da questo progetto.
+La generazione giornaliera non interroga la GitHub API: SHA e versioni GitHub
+arrivano direttamente dai checkout e dagli artifact prodotti dalla matrice.
 
-## Repository registrati
+## Come funziona
 
-[`ecosystem.json`](ecosystem.json) contiene esattamente:
+Il workflow [`.github/workflows/compatibility.yml`](.github/workflows/compatibility.yml):
 
-| Repository | Branch | Dipendenze dell'ecosistema |
-|---|---|---|
-| `spectre_beam` | `main` | `spectre` |
-| `spectre_directive` | `main` | `spectre` |
-| `spectre_kinetic` | `main` | `spectre` |
-| `spectre_ledger` | `main` | `spectre` |
-| `spectre_lab` | `main` | `spectre`, `spectre_ledger` |
-| `spectre_lens` | `main` | `spectre` |
-| `spectre_mnemonic` | `main` | `spectre` |
-| `spectre_prism` | `main` | `spectre` |
-| `spectre_pulse` | `main` | core più Beam, Directive, Kinetic, Lens, Mnemonic e Prism |
+1. legge i repository da [`ecosystem.json`](ecosystem.json);
+2. clona `spectre` e ogni libreria pubblica;
+3. imposta `SPECTRE_PATH` sul checkout del core;
+4. esegue `mix deps.get`, compilazione warning-free e test;
+5. legge le versioni da `mix.exs` e da Hex;
+6. pubblica `index.html` e `status.json` con GitHub Pages.
 
-## Flusso
+I job sono indipendenti: una libreria fallita rende rosso il proprio job, ma il
+report viene comunque pubblicato e mostra il fallimento.
 
-```text
-release GitHub di elchemista/spectre
-                 │
-                 │ osservata dal repository indipendente
-                 ▼
-spectre_ecosystem / watch-core.yml
-                 │ tag -> SHA esatto
-                 ▼
-spectre_ecosystem / compatibility.yml
-                 │ una dispatch per repository
-        ┌────────┼─────────┐
-        ▼        ▼         ▼
- spectre_beam spectre_lab spectre_pulse ...
-        │        │         │
-        └────────┼─────────┘
-                 ▼
-       report JSON + Markdown con link ai run
-```
+## Repository
 
-Il watcher usa l'ID deterministico `core-release-<tag>`. Una release già
-osservata non viene inviata di nuovo. Il retry di una campagna fallita richiede
-un'azione esplicita.
+Il registry contiene il core `spectre` e nove librerie:
 
-## Contratto del satellite
+- `spectre_beam`
+- `spectre_directive`
+- `spectre_kinetic`
+- `spectre_lab`
+- `spectre_ledger`
+- `spectre_lens`
+- `spectre_mnemonic`
+- `spectre_prism`
+- `spectre_pulse`
 
-Ogni repository registrato deve avere sul branch predefinito:
+## Feed pubblico
+
+Dopo aver selezionato **GitHub Actions** in **Settings > Pages > Build and
+deployment**, gli endpoint sono:
 
 ```text
-.github/workflows/spectre-compatibility.yml
+https://elchemista.github.io/spectre_ecosystem/
+https://elchemista.github.io/spectre_ecosystem/status.json
 ```
 
-Il workflow deve accettare quattro input `workflow_dispatch`:
+Ogni libreria espone sempre:
 
-| Input | Significato |
-|---|---|
-| `spectre_ref` | tag, branch o SHA del core da provare |
-| `spectre_repository` | repository del core |
-| `campaign_id` | identificatore comune della campagna |
-| `profile` | `compat` oppure `full` |
+- `status`: risultato del controllo centrale;
+- `hex_version`: ultima versione Hex stabile, oppure `null`;
+- `github_version`: versione dichiarata dal checkout GitHub;
+- `version`: versione Hex quando esiste, altrimenti quella GitHub;
+- `check.run_url`: link al run che ha prodotto il risultato.
 
-Il `run-name` deve includere `campaign_id`, perché il CLI trova il run appena
-creato senza affidarsi a un ritardo fisso. Il satellite può usare runner,
-servizi, database e gate differenti: quella configurazione appartiene al
-satellite, non al manifest centrale.
+Il campo `generated_at` permette al sito consumatore di rilevare dati vecchi.
 
-Vedi [docs/SATELLITE_WORKFLOW.md](docs/SATELLITE_WORKFLOW.md) per il contratto
-completo e un modello iniziale.
+## Esecuzione manuale
 
-### Stato bootstrap iniziale
+Da **Actions > Check and publish ecosystem > Run workflow** puoi scegliere:
 
-La verifica GitHub del 14 agosto 2026 rileva che il workflow richiesto non è
-ancora presente nei nove repository. `spectre_ledger` e `spectre_lab` hanno già
-il boundary `SPECTRE_PATH`; Beam, Directive, Kinetic, Lens, Mnemonic, Prism e
-Pulse devono aggiungerlo insieme al workflow. Questa è una modifica posseduta
-da ogni satellite, non dal core e non dal runner centrale.
+- `spectre_ref`: branch, tag o SHA del core, normalmente `main`;
+- `profile`: `compat` esegue i test, `full` aggiunge la coverage;
+- `packages`: `all` oppure una lista separata da virgole.
 
-Non abilitare il watcher schedulato finché `doctor --github` non restituisce
-tutti i workflow come `ok`.
+Il workflow parte anche ogni giorno alle 04:37 UTC e ai push rilevanti su
+`main`.
 
-## CLI
+## CLI locale
 
-Il progetto non ha dipendenze esterne. Richiede Erlang/OTP 28+ ed Elixir 1.19+.
+Il progetto non ha dipendenze esterne e richiede Erlang/OTP 28+ ed Elixir
+1.19+.
 
 ```bash
 MIX_ENV=prod mix escript.build
-./spectre-ecosystem help
-```
-
-### Validare e pianificare
-
-```bash
 ./spectre-ecosystem validate
 ./spectre-ecosystem list
-./spectre-ecosystem plan \
-  --spectre-ref 0123456789abcdef \
-  --profile full \
-  --packages all
+./spectre-ecosystem plan --spectre-ref main --include-core --format github-matrix
 ```
 
-### Avviare una singola compatibilità remota
+Per generare il feed da risultati già raccolti:
 
 ```bash
-GH_TOKEN="$(gh auth token)" ./spectre-ecosystem check \
-  --package spectre_mnemonic \
-  --spectre-ref 0123456789abcdef \
-  --profile full \
-  --campaign-id manual-core-01234567 \
-  --result campaign-results/spectre_mnemonic.json
+./spectre-ecosystem snapshot \
+  --results-dir compatibility-results \
+  --output status.json
 ```
 
-`check` invia e attende il workflow del repository. Non esegue i suoi test nel
-processo del CLI.
+## Aggiungere una libreria
 
-### Avviare la matrice centrale
+La libreria deve essere pubblica, essere registrata in `ecosystem.json` e usare
+il checkout indicato da `SPECTRE_PATH` quando la variabile è presente. Non deve
+avere un workflow speciale. Vedi [docs/ADDING_A_PACKAGE.md](docs/ADDING_A_PACKAGE.md).
 
-```bash
-GH_TOKEN="$(gh auth token)" ./spectre-ecosystem dispatch \
-  --spectre-ref 0123456789abcdef \
-  --profile full \
-  --packages all \
-  --campaign-id manual-core-01234567
-```
-
-### Controllare GitHub
-
-```bash
-GH_TOKEN="$(gh auth token)" ./spectre-ecosystem doctor --github
-```
-
-Il doctor esegue soltanto richieste di lettura: verifica repository e presenza
-dei workflow, senza avviarli.
-
-## Configurazione GitHub
-
-La configurazione iniziale richiede una GitHub App con accesso limitato ai nove
-repository satellite e due valori Actions nel repository centrale. Le istruzioni
-UI complete sono in [docs/GITHUB_SETUP_IT.md](docs/GITHUB_SETUP_IT.md).
-
-## Gate di questo repository
+## Gate locali
 
 ```bash
 mix format --check-formatted

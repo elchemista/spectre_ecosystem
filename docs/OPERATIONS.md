@@ -1,67 +1,42 @@
 # Operations
 
-## Campagna manuale da CLI
+## Prima configurazione
 
-```bash
-GH_TOKEN="$(gh auth token)" ./spectre-ecosystem dispatch \
-  --spectre-ref CORE_SHA \
-  --profile full \
-  --packages all \
-  --campaign-id manual-YYYYMMDD
-```
+1. Pubblica il workflow sul branch `main`.
+2. Apri **Settings > Pages**.
+3. Seleziona **GitHub Actions** come sorgente.
+4. Avvia **Check and publish ecosystem** manualmente.
 
-Usa uno SHA per campagne di release candidate. Branch e tag sono accettati per
-diagnosi, ma uno SHA rende il report immutabile.
+Non configurare GitHub App, PAT, repository variable o secret.
 
-## Campagna parziale
+## Controllo manuale
 
-```bash
-GH_TOKEN="$(gh auth token)" ./spectre-ecosystem dispatch \
-  --spectre-ref CORE_SHA \
-  --profile compat \
-  --packages spectre_ledger,spectre_lab \
-  --campaign-id ledger-lab-CORE_SHA
-```
-
-Il piano mantiene l'ordine dichiarato dal grafo. Ogni repository viene comunque
-eseguito dal proprio workflow e non condivide filesystem o processi con gli
-altri.
+Apri **Actions > Check and publish ecosystem > Run workflow**. Usa `main` per
+il controllo giornaliero oppure uno SHA di `spectre` per un risultato
+riproducibile. `packages` accetta `all` o nomi separati da virgole.
 
 ## Diagnosi
 
-1. Apri il report aggregato.
-2. Segui il `run_url` del repository fallito.
-3. Identifica il job remoto fallito.
-4. Correggi il repository proprietario del test o il core, secondo la causa.
-5. Riesegui lo stesso job oppure crea una campagna esplicita.
+- Un job con il nome di una libreria fallisce quando checkout, dipendenze,
+  compilazione o test falliscono. Apri quel job dal link `check.run_url`.
+- `hex_version: null` è normale per una libreria non ancora pubblicata.
+- `status: unknown` indica un artifact mancante, per esempio dopo una
+  cancellazione o un errore del runner prima del test.
+- Un errore `status_source_failed` nel publisher giornaliero indica che Hex non
+  ha fornito i metadati pubblici necessari; GitHub non viene interrogato via
+  API.
+- Se il deploy fallisce, verifica che Pages usi GitHub Actions come sorgente.
 
-Classi di errore centrali comuni:
+Il workflow può risultare rosso e pubblicare comunque una pagina valida: il
+rosso rappresenta una incompatibilità, non necessariamente un errore del
+publisher.
 
-- `github_http_401` o `github_http_403`: permessi App o secret errati;
-- `github_http_404`: repository, workflow o branch non esistente;
-- `campaign_discovery_timeout`: il workflow non espone il campaign ID nel
-  `run-name`, oppure GitHub non ha creato il run;
-- `workflow_wait_timeout`: il run satellite ha superato il limite registrato;
-- risultato mancante: il job centrale è terminato prima di scrivere l'artifact.
+## Endpoint
 
-## Modifica dei timeout
+```text
+https://elchemista.github.io/spectre_ecosystem/
+https://elchemista.github.io/spectre_ecosystem/status.json
+```
 
-`timeout_minutes` in `ecosystem.json` limita l'attesa del singolo workflow
-satellite. Aumentalo soltanto dopo aver verificato che il job remoto stia
-progredendo; non usarlo per nascondere un deadlock. Il valore massimo è 50
-minuti, così dispatch e lettura finale restano entro la durata del token
-installazione GitHub App.
-
-## Rotazione della GitHub App
-
-1. genera una nuova private key dall'App;
-2. sostituisci `SPECTRE_APP_PRIVATE_KEY` nel repository centrale;
-3. esegui una campagna su un solo satellite;
-4. revoca la chiave precedente;
-5. esegui `doctor --github` e una campagna completa.
-
-## Rimozione di un repository
-
-Rimuovi prima il repository dal manifest e valida la PR. Dopo il merge, rimuovi
-l'installazione GitHub App da quel repository. Non cancellare i report storici:
-restano evidenza delle campagne precedenti.
+Il client deve controllare `generated_at` e trattare come vecchio un feed non
+aggiornato entro l'intervallo atteso.

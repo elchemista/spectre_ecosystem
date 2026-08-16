@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Spectre ecosystem status</title>
+    <style>
+      :root { color-scheme: light dark; font-family: system-ui, sans-serif; }
+      body { max-width: 64rem; margin: 3rem auto; padding: 0 1rem; }
+      table { width: 100%; border-collapse: collapse; }
+      th, td { padding: .7rem; border-bottom: 1px solid #8886; text-align: left; }
+      .passing { color: #1a8f45; }
+      .failing { color: #d33; }
+      .unknown, .incomplete { color: #b7791f; }
+      code { font-size: .9em; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Spectre ecosystem</h1>
+      <p id="summary">Loading the latest compatibility check…</p>
+      <table>
+        <thead>
+          <tr><th>Library</th><th>Status</th><th>Version</th><th>Hex</th><th>GitHub</th></tr>
+        </thead>
+        <tbody id="libraries"></tbody>
+      </table>
+      <p><small>Raw data: <a href="./status.json">status.json</a></small></p>
+    </main>
+    <script>
+      const cell = (text) => {
+        const element = document.createElement("td");
+        element.textContent = text ?? "—";
+        return element;
+      };
+
+      fetch("./status.json", {cache: "no-store"})
+        .then((response) => {
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          return response.json();
+        })
+        .then((data) => {
+          const generated = new Date(data.generated_at).toLocaleString();
+          const summary = document.querySelector("#summary");
+          summary.textContent = `${data.status} · checked ${generated}`;
+          summary.className = data.status;
+
+          for (const library of data.libraries) {
+            const row = document.createElement("tr");
+            const name = document.createElement("a");
+            name.href = library.repository_url;
+            name.textContent = library.name;
+            const nameCell = document.createElement("td");
+            nameCell.append(name);
+
+            const status = document.createElement("a");
+            status.textContent = library.status;
+            status.className = library.status;
+            status.href = library.check.run_url || library.repository_url;
+            const statusCell = document.createElement("td");
+            statusCell.append(status);
+
+            row.append(
+              nameCell,
+              statusCell,
+              cell(library.version),
+              cell(library.hex_version),
+              cell(library.github_version)
+            );
+            document.querySelector("#libraries").append(row);
+          }
+        })
+        .catch((error) => {
+          const summary = document.querySelector("#summary");
+          summary.textContent = `Could not load status.json: ${error.message}`;
+          summary.className = "failing";
+        });
+    </script>
+  </body>
+</html>
