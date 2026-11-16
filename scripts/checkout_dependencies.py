@@ -10,7 +10,7 @@ root = Path("checkouts").resolve()
 resolved = []
 for source in sources:
     name, repository, ref = (source[key] for key in ("name", "repository", "default_ref"))
-    if not re.fullmatch(r"spectre_[a-z0-9]+", name):
+    if not re.fullmatch(r"spectre(?:_[a-z0-9]+)?", name):
         raise ValueError("Invalid dependency name")
     if repository != "elchemista/" + name or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._/-]{0,199}", ref):
         raise ValueError("Invalid dependency coordinate")

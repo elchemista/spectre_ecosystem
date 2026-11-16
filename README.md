@@ -62,6 +62,27 @@ Il registry contiene il core `spectre` e nove librerie:
 - `spectre_prism`
 - `spectre_pulse`
 
+## Integrazione completa dello Stack
+
+Il progetto [`integration/stack_tools`](integration/stack_tools/README.md) verifica
+un unico workflow AgentServer/GAM con tutte e nove le librerie: lettura,
+preparazione di proposte, consenso, esecuzione, checkpoint e recovery.
+I servizi esterni sono fixture deterministiche; gli adapter dei package e il
+confine GAM sono reali.
+
+Il job **Nine-package AgentServer integration** della CI ecosystem seleziona core
+e satelliti dagli SHA di `ecosystem.json`. Questa verifica vive nell'ecosistema;
+la CI del core resta indipendente dai checkout delle librerie.
+
+Con i repository come directory sorelle:
+
+```bash
+cd integration/stack_tools
+mix deps.get --check-locked
+mix compile --warnings-as-errors
+mix test --max-cases 4
+```
+
 ## Feed pubblico
 
 Dopo aver selezionato **GitHub Actions** in **Settings > Pages > Build and
