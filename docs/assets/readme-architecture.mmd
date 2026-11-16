@@ -1,0 +1,7 @@
+flowchart TB
+  Registry[ecosystem.json: riferimenti] --> Plan[Piano delle dipendenze]
+  Core[spectre_ref: core] --> Plan
+  Plan --> Checkout[Checkout core e satelliti transitivi]
+  Checkout --> Gates[Compilazione e test]
+  Gates --> Results[Artifact con SHA testati]
+  Results --> Feed[status.json e GitHub Pages]

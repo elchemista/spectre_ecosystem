@@ -13,70 +13,90 @@
   "core": {
     "name": "spectre",
     "repository": "elchemista/spectre",
-    "default_ref": "main"
+    "default_ref": "bad658634e905ad8ed79965d8e2f6eeede7d811a"
   },
-  "profiles": ["compat", "full"],
+  "profiles": [
+    "compat",
+    "full"
+  ],
   "packages": [
     {
       "name": "spectre_beam",
       "repository": "elchemista/spectre_beam",
-      "default_ref": "main",
-      "dependencies": ["spectre"],
+      "default_ref": "394987d2537eb30467a7b2f682b1a593138e57c7",
+      "dependencies": [
+        "spectre"
+      ],
       "timeout_minutes": 35
     },
     {
       "name": "spectre_directive",
       "repository": "elchemista/spectre_directive",
-      "default_ref": "main",
-      "dependencies": ["spectre"],
+      "default_ref": "8ab5509c2b0c9af3788bab4baed8068ca2da9270",
+      "dependencies": [
+        "spectre"
+      ],
       "timeout_minutes": 35
     },
     {
       "name": "spectre_kinetic",
       "repository": "elchemista/spectre_kinetic",
-      "default_ref": "main",
-      "dependencies": ["spectre"],
+      "default_ref": "cadeb7fa68f481cd68315c3a968e3293b5301809",
+      "dependencies": [
+        "spectre"
+      ],
       "timeout_minutes": 50
     },
     {
       "name": "spectre_lab",
       "repository": "elchemista/spectre_lab",
-      "default_ref": "main",
-      "dependencies": ["spectre", "spectre_ledger"],
+      "default_ref": "9b1f61507e7696ab696874f55d7375698c63bd74",
+      "dependencies": [
+        "spectre",
+        "spectre_ledger"
+      ],
       "timeout_minutes": 45
     },
     {
       "name": "spectre_ledger",
       "repository": "elchemista/spectre_ledger",
-      "default_ref": "main",
-      "dependencies": ["spectre"],
+      "default_ref": "00d9c88aed14e65455d09112e14c78f81bfe2612",
+      "dependencies": [
+        "spectre"
+      ],
       "timeout_minutes": 50
     },
     {
       "name": "spectre_lens",
       "repository": "elchemista/spectre_lens",
-      "default_ref": "main",
-      "dependencies": ["spectre"],
+      "default_ref": "c2d1449b09bf67e8a6d309461fef29e763fb1aa3",
+      "dependencies": [
+        "spectre"
+      ],
       "timeout_minutes": 45
     },
     {
       "name": "spectre_mnemonic",
       "repository": "elchemista/spectre_mnemonic",
-      "default_ref": "main",
-      "dependencies": ["spectre"],
+      "default_ref": "a357262817ab1f124589bea62f8be1b6ed22297f",
+      "dependencies": [
+        "spectre"
+      ],
       "timeout_minutes": 50
     },
     {
       "name": "spectre_prism",
       "repository": "elchemista/spectre_prism",
-      "default_ref": "main",
-      "dependencies": ["spectre"],
+      "default_ref": "54ea7c4ff82b9d7e60fb8eeec282987ae69cc7bf",
+      "dependencies": [
+        "spectre"
+      ],
       "timeout_minutes": 35
     },
     {
       "name": "spectre_pulse",
       "repository": "elchemista/spectre_pulse",
-      "default_ref": "main",
+      "default_ref": "578d406d3d1631f063647f934c787df4a2ab8511",
       "dependencies": [
         "spectre",
         "spectre_beam",

@@ -1,7 +1,7 @@
 name: Check and publish ecosystem
 run-name: >-
   ecosystem:${{ inputs.campaign_id || format('run-{0}', github.run_id) }}
-  core=${{ inputs.spectre_ref || 'main' }}
+  core=${{ inputs.spectre_ref || 'bad658634e905ad8ed79965d8e2f6eeede7d811a' }}
 
 on:
   push:
@@ -10,6 +10,7 @@ on:
       - .github/workflows/compatibility.yml
       - ecosystem.json
       - lib/**
+      - scripts/**
       - mix.exs
       - status/**
   schedule:
@@ -19,7 +20,7 @@ on:
       spectre_ref:
         description: Spectre tag, branch or commit to test
         required: false
-        default: main
+        default: bad658634e905ad8ed79965d8e2f6eeede7d811a
         type: string
       profile:
         description: Test profile
@@ -70,7 +71,7 @@ jobs:
       - name: Resolve inputs
         id: values
         env:
-          INPUT_REF: ${{ inputs.spectre_ref || 'main' }}
+          INPUT_REF: ${{ inputs.spectre_ref || 'bad658634e905ad8ed79965d8e2f6eeede7d811a' }}
           INPUT_PROFILE: ${{ inputs.profile || 'compat' }}
           INPUT_PACKAGES: ${{ inputs.packages || 'all' }}
           INPUT_CAMPAIGN: ${{ inputs.campaign_id }}
@@ -138,6 +139,17 @@ jobs:
           path: checkouts/library
           persist-credentials: false
 
+      - name: Check out dependency checkout helper
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: checkouts/registry
+          persist-credentials: false
+
+      - name: Check out compatible transitive dependencies
+        env:
+          DEPENDENCY_SOURCES: ${{ toJSON(matrix.dependency_sources) }}
+        run: python3 checkouts/registry/scripts/checkout_dependencies.py
+
       - name: Set up Erlang/OTP and Elixir
         uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1
         with:
@@ -200,6 +212,7 @@ jobs:
           PROJECT_PATH: ${{ steps.project.outputs.path }}
           CHECK_OUTCOME: ${{ steps.check.outcome }}
           DURATION_MS: ${{ steps.check.outputs.duration_ms }}
+          SPECTRE_DEPENDENCY_SOURCES: ${{ runner.temp }}/spectre-dependency-sources.json
         run: |
           status=failed
           conclusion=failure
@@ -215,6 +228,7 @@ jobs:
               "$PROJECT_PATH/mix.exs" | head -n 1)
           fi
           mkdir -p "$RUNNER_TEMP/result"
+          if [[ ! -f "$SPECTRE_DEPENDENCY_SOURCES" ]]; then printf '[]\n' > "$SPECTRE_DEPENDENCY_SOURCES"; fi
           jq -n \
             --arg package "$LIBRARY_NAME" \
             --arg repository "$REPOSITORY" \
@@ -227,10 +241,11 @@ jobs:
             --arg conclusion "$conclusion" \
             --arg run_url "$run_url" \
             --argjson duration_ms "$duration_ms" \
+            --slurpfile dependency_sources "$SPECTRE_DEPENDENCY_SOURCES" \
             '{schema: 1, package: $package, repository: $repository,
               profile: $profile, spectre_ref: $spectre_ref,
               spectre_sha: $spectre_sha, head_sha: $head_sha,
-              github_version: $github_version,
+              github_version: $github_version, dependency_sources: $dependency_sources[0],
               status: $status, conclusion: $conclusion,
               run_url: $run_url, duration_ms: $duration_ms,
               gates: [{gate: "compile and test", status: $status,

@@ -9,8 +9,8 @@ ecosystem.json
       │
       ▼
 matrice: core + librerie pubbliche
-      │ checkout di spectre e della libreria
-      │ SPECTRE_PATH=checkout del core
+      │ checkout del core, della libreria e dei satelliti richiesti
+      │ SPECTRE_PATH e override dei satelliti → checkout coordinati
       ▼
 mix deps.get → compile → test
       │
@@ -28,7 +28,14 @@ librerie. `fail-fast` è disabilitato per ottenere sempre un risultato completo.
 
 Ogni libreria conserva la normale dipendenza Hex quando `SPECTRE_PATH` non è
 impostata. Durante la compatibilità, la stessa dipendenza punta al checkout
-centrale con `path:` e `override: true`. Il workflow non riscrive `mix.exs`.
+centrale con `path:` e `override: true`. Le dipendenze satellite ricevono gli
+override `<NOME_PACCHETTO>_PATH` dopo essere state selezionate dai `default_ref`
+del registry. Il workflow non riscrive `mix.exs`.
+
+Il catalogo 0.4 fissa core e satelliti a SHA completi pubblicati; il workflow
+schedulato usa lo stesso core per default. Il formato accetta anche branch e tag
+per campagne esplicite. Gli artifact registrano i commit risolti, compresi i
+satelliti transitivi. L'orchestratore resta su `main` per evitare un pin a se stesso.
 
 ## Stato pubblico
 

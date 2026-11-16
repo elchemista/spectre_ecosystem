@@ -657,8 +657,36 @@ defmodule Spectre.Ecosystem.CLI do
       "spectre_repository" => manifest.core.repository,
       "profile" => profile,
       "satellite_workflow" => manifest.orchestrator.satellite_workflow,
-      "packages" => Enum.map(packages, &package_data/1)
+      "packages" =>
+        Enum.map(packages, fn package ->
+          package_data(package)
+          |> Map.put("dependency_sources", dependency_sources(manifest, package))
+        end)
     }
+  end
+
+  defp dependency_sources(manifest, package) do
+    required = dependency_names(manifest, package.dependencies, MapSet.new())
+
+    manifest
+    |> Manifest.ordered_packages()
+    |> Enum.filter(&MapSet.member?(required, &1.name))
+    |> Enum.map(&package_data/1)
+  end
+
+  defp dependency_names(manifest, names, seen) do
+    Enum.reduce(names, seen, fn
+      "spectre", acc ->
+        acc
+
+      name, acc ->
+        if MapSet.member?(acc, name) do
+          acc
+        else
+          {:ok, package} = Manifest.fetch_package(manifest, name)
+          dependency_names(manifest, package.dependencies, MapSet.put(acc, name))
+        end
+    end)
   end
 
   defp package_data(package) do

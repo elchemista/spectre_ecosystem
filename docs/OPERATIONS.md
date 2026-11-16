@@ -11,9 +11,20 @@ Non configurare GitHub App, PAT, repository variable o secret.
 
 ## Controllo manuale
 
-Apri **Actions > Check and publish ecosystem > Run workflow**. Usa `main` per
-il controllo giornaliero oppure uno SHA di `spectre` per un risultato
-riproducibile. `packages` accetta `all` o nomi separati da virgole.
+Apri **Actions > Check and publish ecosystem > Run workflow**. Il default di
+`spectre_ref` è lo SHA del core candidato 0.4; i satelliti e le loro dipendenze
+transitive usano i commit completi in `ecosystem.json`. Anche i run pianificati
+selezionano questo insieme congelato. `packages` accetta `all` o nomi separati da
+virgole; `full` aggiunge la coverage ai test di compatibilità.
+
+Puoi scegliere un branch, tag o altro SHA come override del core. Questo non
+modifica i pin satellite: per una nuova combinazione aggiorna esplicitamente
+anche i relativi `default_ref`. Gli artifact e il feed conservano i commit
+risolti delle dipendenze in `check.dependency_sources`.
+
+Quando aggiorni il core nel catalogo, allinea anche il default e i fallback di
+`compatibility.yml`: il test contrattuale controlla che coincidano. Il riferimento
+dell'orchestratore rimane `main`, senza un pin circolare al proprio commit.
 
 ## Diagnosi
 

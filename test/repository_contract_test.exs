@@ -72,6 +72,14 @@ defmodule Spectre.Ecosystem.RepositoryContractTest do
     assert workflow =~ "SPECTRE_PATH:"
     assert workflow =~ "mix compile --warnings-as-errors"
     assert workflow =~ "mix test $TEST_ARGS"
+
+    assert {:ok, manifest} = Manifest.load(Path.join(@root, "ecosystem.json"))
+    assert workflow =~ "default: #{manifest.core.default_ref}"
+
+    assert length(String.split(workflow, "inputs.spectre_ref || '#{manifest.core.default_ref}'")) ==
+             3
+
+    assert workflow =~ "ref: ${{ needs.plan.outputs.spectre_ref }}"
   end
 
   test "development wrapper is executable" do

@@ -13,3 +13,5 @@ erl_crash.dump
 *.plt.hash
 campaign-results/
 /tmp/
+
+__pycache__/

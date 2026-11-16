@@ -6,7 +6,11 @@ La configurazione richiede soltanto GitHub Pages:
 2. apri **Settings > Pages**;
 3. in **Build and deployment**, seleziona **GitHub Actions**;
 4. apri **Actions > Check and publish ecosystem**;
-5. premi **Run workflow** lasciando `spectre_ref: main` e `packages: all`.
+5. premi **Run workflow** lasciando il default `spectre_ref` e `packages: all`
+   per verificare i commit congelati del candidato 0.4.
+
+Per un controllo diverso puoi inserire un branch, tag o SHA del core. I satelliti
+restano quelli fissati in `ecosystem.json`, anche quando cambi questo input.
 
 Il workflow usa repository pubblici e `contents: read`. Non creare una GitHub
 App e non aggiungere `SPECTRE_APP_CLIENT_ID`, `SPECTRE_APP_PRIVATE_KEY` o PAT.

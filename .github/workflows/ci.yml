@@ -41,6 +41,9 @@ jobs:
       - name: Run tests and coverage contract
         run: mix test --cover
 
+      - name: Verify dependency checkouts offline
+        run: python3 -m unittest discover -s test -p '*_test.py'
+
       - name: Validate registry and executable
         run: |
           mix escript.build
