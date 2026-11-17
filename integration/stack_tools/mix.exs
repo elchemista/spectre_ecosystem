@@ -16,10 +16,20 @@ defmodule SpectreStackToolsIntegration.MixProject do
   defp deps do
     packages = ~w(kinetic mnemonic lens prism beam directive pulse ledger lab)a
 
-    [{:spectre, path: "../../../spectre", override: true}] ++
+    [spectre_dep()] ++
       Enum.map(packages, fn package ->
         app = String.to_atom("spectre_#{package}")
         {app, path: "../../../#{app}", override: true}
       end)
+  end
+
+  defp spectre_dep do
+    case System.get_env("SPECTRE_PATH") do
+      path when is_binary(path) and path != "" ->
+        {:spectre, path: Path.expand(path), override: true}
+
+      _unset ->
+        {:spectre, "~> 0.4.0", override: true}
+    end
   end
 end

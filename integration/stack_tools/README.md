@@ -1,14 +1,16 @@
 # Nine-package AgentServer integration
 
 This standalone Mix project belongs to the ecosystem, not Spectre core. It tests
-the complete AgentServer/GAM workflow against the core and nine companion source
-revisions selected by [`ecosystem.json`](../../ecosystem.json). The ecosystem CI
-checks those exact commits out as siblings before running this project. No
+the complete AgentServer/GAM workflow against the published Hex Spectre 0.4
+package and nine companion source revisions selected by
+[`ecosystem.json`](../../ecosystem.json). The ecosystem CI checks those exact
+companion commits out as siblings before running this project. No
 satellite dependency or integration suite is added to the core package.
 
-For local development, place `spectre_ecosystem`, `spectre` and the nine package
+For local development, place `spectre_ecosystem` and the nine package
 checkouts beside each other. Use the catalog revisions for a reproducible run;
 changing a sibling checkout deliberately tests that local source instead.
+Set `SPECTRE_PATH` explicitly to test a core source checkout instead of Hex.
 
 From this directory:
 
@@ -84,8 +86,8 @@ it does not start another Domain or provision an independent mandate. Its state,
 pending requests and checkpoint remain local. The test reads `Server.gam_view`
 through the root consumer and asserts the email and save Acts plus Skill
 invocation Evidence in that one projection. See the [Skill ownership and consent
-contract](https://github.com/elchemista/spectre/blob/affe0b6ee33c957bc9aff9eec70cf7e7c33e80d6/docs/SKILLS.md) for the concurrent two-Skill case exercised by the
-[LiveView demo](https://github.com/elchemista/spectre/blob/affe0b6ee33c957bc9aff9eec70cf7e7c33e80d6/docs/DEMO.md).
+contract](https://github.com/elchemista/spectre/blob/0.4.0/docs/SKILLS.md) for the concurrent two-Skill case exercised by the
+[LiveView demo](https://github.com/elchemista/spectre/blob/0.4.0/docs/DEMO.md).
 
 ## OTP process and CPU profile
 

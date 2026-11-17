@@ -124,10 +124,10 @@ Il progetto non ha dipendenze esterne e richiede Erlang/OTP 28+ ed Elixir
 MIX_ENV=prod mix escript.build
 ./spectre-ecosystem validate
 ./spectre-ecosystem list
-./spectre-ecosystem plan --spectre-ref affe0b6ee33c957bc9aff9eec70cf7e7c33e80d6 --include-core --format github-matrix
+./spectre-ecosystem plan --spectre-ref 0.4.0 --include-core --format github-matrix
 ```
 
-L'esempio usa lo SHA del core verificato. Sostituiscilo con un branch, tag o altro
+L'esempio usa il tag della release 0.4.0. Sostituiscilo con un branch, tag o altro
 SHA per una campagna esplicita; i pin dei satelliti restano quelli del catalogo.
 
 Per generare il feed da risultati già raccolti:

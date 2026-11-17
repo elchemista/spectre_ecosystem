@@ -27,9 +27,9 @@ jobs:
           path: checkouts/spectre_ecosystem
           persist-credentials: false
 
-      - name: Check out reviewed core and companion revisions
+      - name: Check out reviewed companion revisions
         run: |
-          sources=$(python3 -c 'import json; d=json.load(open("checkouts/spectre_ecosystem/ecosystem.json")); print(json.dumps([d["core"], *d["packages"]]))')
+          sources=$(python3 -c 'import json; d=json.load(open("checkouts/spectre_ecosystem/ecosystem.json")); print(json.dumps(d["packages"]))')
           export DEPENDENCY_SOURCES="$sources"
           python3 checkouts/spectre_ecosystem/scripts/checkout_dependencies.py
 
@@ -49,6 +49,7 @@ jobs:
         run: |
           mix deps.get --check-locked
           mix compile --warnings-as-errors
+          mix deps | grep -E '^\* spectre 0\.4\.[0-9]+ \(Hex package\)'
           mix test --max-cases 4
 
   quality:

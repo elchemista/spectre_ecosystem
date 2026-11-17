@@ -1,7 +1,7 @@
 name: Check and publish ecosystem
 run-name: >-
   ecosystem:${{ inputs.campaign_id || format('run-{0}', github.run_id) }}
-  core=${{ inputs.spectre_ref || 'affe0b6ee33c957bc9aff9eec70cf7e7c33e80d6' }}
+  core=${{ inputs.spectre_ref || '57e762ceda1188daa60da0e068ed10b5376c3441' }}
 
 on:
   push:
@@ -20,7 +20,7 @@ on:
       spectre_ref:
         description: Spectre tag, branch or commit to test
         required: false
-        default: affe0b6ee33c957bc9aff9eec70cf7e7c33e80d6
+        default: 57e762ceda1188daa60da0e068ed10b5376c3441
         type: string
       profile:
         description: Test profile
@@ -71,7 +71,7 @@ jobs:
       - name: Resolve inputs
         id: values
         env:
-          INPUT_REF: ${{ inputs.spectre_ref || 'affe0b6ee33c957bc9aff9eec70cf7e7c33e80d6' }}
+          INPUT_REF: ${{ inputs.spectre_ref || '57e762ceda1188daa60da0e068ed10b5376c3441' }}
           INPUT_PROFILE: ${{ inputs.profile || 'compat' }}
           INPUT_PACKAGES: ${{ inputs.packages || 'all' }}
           INPUT_CAMPAIGN: ${{ inputs.campaign_id }}
