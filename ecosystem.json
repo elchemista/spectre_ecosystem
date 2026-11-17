@@ -50,7 +50,7 @@
     {
       "name": "spectre_lab",
       "repository": "elchemista/spectre_lab",
-      "default_ref": "315276a0f9352c7bb74843c82d9d998b6064906e",
+      "default_ref": "9aab0aa23edbcdad3997e52485eac01fa5f9540d",
       "dependencies": [
         "spectre",
         "spectre_ledger"
@@ -60,7 +60,7 @@
     {
       "name": "spectre_ledger",
       "repository": "elchemista/spectre_ledger",
-      "default_ref": "f024f8a5e6e8bff5a37522308aa0b1271e5e20cc",
+      "default_ref": "bd9fd23643d3b38b8c404a5a508aad80d1d35b48",
       "dependencies": [
         "spectre"
       ],
