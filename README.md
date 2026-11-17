@@ -10,16 +10,40 @@ usa soltanto `contents: read`.
 La generazione giornaliera non interroga la GitHub API: SHA e versioni GitHub
 arrivano direttamente dai checkout e dagli artifact prodotti dalla matrice.
 
+## Compatibilità con la linea 0.4
+
+Il catalogo [`ecosystem.json`](ecosystem.json) congela la linea 0.4: core e
+nove satelliti puntano a commit Git completi già pubblicati. Anche i default del
+workflow selezionano quel core. Lab usa il Ledger fissato e Pulse riceve i suoi
+satelliti transitivi compatibili, senza richiedere una pubblicazione su Hex.
+
+`spectre_ref` permette ancora di scegliere un branch, tag o SHA diverso per il
+core. I satelliti mantengono i pin del catalogo: cambiare solo il core non
+seleziona automaticamente nuove versioni delle altre librerie. Per verificare
+un altro insieme, aggiorna esplicitamente i relativi `default_ref`.
+
+Il report conserva gli SHA realmente testati in `check.dependency_sources`.
+Un branch segue nuovi commit; uno SHA identifica la stessa revisione nei run
+successivi. Il solo orchestratore rimane su `main`: non fissa se stesso nel
+catalogo che deve aggiornare.
+
+Il [demo](https://github.com/elchemista/demo_spectre) usa invece un proprio
+manifest di pin Git per riprodurre l'applicazione completa con PostgreSQL.
+
 ## Come funziona
 
 Il workflow [`.github/workflows/compatibility.yml`](.github/workflows/compatibility.yml):
 
 1. legge i repository da [`ecosystem.json`](ecosystem.json);
-2. clona `spectre` e ogni libreria pubblica;
-3. imposta `SPECTRE_PATH` sul checkout del core;
+2. clona `spectre`, ogni libreria pubblica e le sue dipendenze transitive;
+3. imposta `SPECTRE_PATH` e gli override dei satelliti sui checkout compatibili;
 4. esegue `mix deps.get`, compilazione warning-free e test;
 5. legge le versioni da `mix.exs` e da Hex;
 6. pubblica `index.html` e `status.json` con GitHub Pages.
+
+![Spectre Ecosystem: Come funziona](docs/assets/readme-architecture.svg)
+
+[Diagram source](docs/assets/readme-architecture.mmd).
 
 I job sono indipendenti: una libreria fallita rende rosso il proprio job, ma il
 report viene comunque pubblicato e mostra il fallimento.
@@ -38,6 +62,27 @@ Il registry contiene il core `spectre` e nove librerie:
 - `spectre_prism`
 - `spectre_pulse`
 
+## Integrazione completa dello Stack
+
+Il progetto [`integration/stack_tools`](integration/stack_tools/README.md) verifica
+un unico workflow AgentServer/GAM con tutte e nove le librerie: lettura,
+preparazione di proposte, consenso, esecuzione, checkpoint e recovery.
+I servizi esterni sono fixture deterministiche; gli adapter dei package e il
+confine GAM sono reali.
+
+Il job **Nine-package AgentServer integration** della CI ecosystem seleziona core
+e satelliti dagli SHA di `ecosystem.json`. Questa verifica vive nell'ecosistema;
+la CI del core resta indipendente dai checkout delle librerie.
+
+Con i repository come directory sorelle:
+
+```bash
+cd integration/stack_tools
+mix deps.get --check-locked
+mix compile --warnings-as-errors
+mix test --max-cases 4
+```
+
 ## Feed pubblico
 
 Dopo aver selezionato **GitHub Actions** in **Settings > Pages > Build and
@@ -54,7 +99,8 @@ Ogni libreria espone sempre:
 - `hex_version`: ultima versione Hex stabile, oppure `null`;
 - `github_version`: versione dichiarata dal checkout GitHub;
 - `version`: versione Hex quando esiste, altrimenti quella GitHub;
-- `check.run_url`: link al run che ha prodotto il risultato.
+- `check.run_url`: link al run che ha prodotto il risultato;
+- `check.dependency_sources`: riferimenti e SHA delle dipendenze satellite testate.
 
 Il campo `generated_at` permette al sito consumatore di rilevare dati vecchi.
 
@@ -62,7 +108,7 @@ Il campo `generated_at` permette al sito consumatore di rilevare dati vecchi.
 
 Da **Actions > Check and publish ecosystem > Run workflow** puoi scegliere:
 
-- `spectre_ref`: branch, tag o SHA del core, normalmente `main`;
+- `spectre_ref`: branch, tag o SHA del core; il modulo mostra il default corrente;
 - `profile`: `compat` esegue i test, `full` aggiunge la coverage;
 - `packages`: `all` oppure una lista separata da virgole.
 
@@ -78,8 +124,11 @@ Il progetto non ha dipendenze esterne e richiede Erlang/OTP 28+ ed Elixir
 MIX_ENV=prod mix escript.build
 ./spectre-ecosystem validate
 ./spectre-ecosystem list
-./spectre-ecosystem plan --spectre-ref main --include-core --format github-matrix
+./spectre-ecosystem plan --spectre-ref affe0b6ee33c957bc9aff9eec70cf7e7c33e80d6 --include-core --format github-matrix
 ```
+
+L'esempio usa lo SHA del core verificato. Sostituiscilo con un branch, tag o altro
+SHA per una campagna esplicita; i pin dei satelliti restano quelli del catalogo.
 
 Per generare il feed da risultati già raccolti:
 
@@ -101,6 +150,7 @@ avere un workflow speciale. Vedi [docs/ADDING_A_PACKAGE.md](docs/ADDING_A_PACKAG
 mix format --check-formatted
 mix compile --warnings-as-errors
 mix test --cover
+python3 -m unittest discover -s test -p '*_test.py'
 mix escript.build
 ./spectre-ecosystem validate
 ```

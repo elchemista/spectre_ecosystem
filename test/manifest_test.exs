@@ -26,7 +26,14 @@ defmodule Spectre.Ecosystem.ManifestTest do
     assert manifest.orchestrator.satellite_workflow == "spectre-compatibility.yml"
     assert manifest.profiles == ~w(compat full)
     assert Enum.sort(Enum.map(manifest.packages, & &1.name)) == Enum.sort(@packages)
-    assert {:ok, %{default_ref: "main"}} = Manifest.fetch_package(manifest, "spectre_kinetic")
+
+    assert manifest.orchestrator.default_ref == "main"
+    refs = Enum.map([manifest.core | manifest.packages], & &1.default_ref)
+    assert Enum.all?(refs, &Regex.match?(~r/\A[0-9a-f]{40}\z/, &1))
+    assert length(Enum.uniq(refs)) == 10
+
+    assert {:ok, %{name: "spectre_kinetic"}} =
+             Manifest.fetch_package(manifest, "spectre_kinetic")
 
     ordered = Enum.map(Manifest.ordered_packages(manifest), & &1.name)
     assert index(ordered, "spectre_ledger") < index(ordered, "spectre_lab")

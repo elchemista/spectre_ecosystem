@@ -1,8 +1,6 @@
 name: CI
 
 on:
-  push:
-    branches: [main]
   pull_request:
   workflow_dispatch:
 
@@ -14,6 +12,45 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  stack-tools:
+    name: Nine-package AgentServer integration
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      MIX_ENV: test
+      ERL_FLAGS: "+S 4:4"
+      CARGO_BUILD_JOBS: "2"
+    steps:
+      - name: Check out ecosystem candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: checkouts/spectre_ecosystem
+          persist-credentials: false
+
+      - name: Check out reviewed core and companion revisions
+        run: |
+          sources=$(python3 -c 'import json; d=json.load(open("checkouts/spectre_ecosystem/ecosystem.json")); print(json.dumps([d["core"], *d["packages"]]))')
+          export DEPENDENCY_SOURCES="$sources"
+          python3 checkouts/spectre_ecosystem/scripts/checkout_dependencies.py
+
+      - name: Set up Erlang/OTP and Elixir
+        uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1
+        with:
+          elixir-version: "1.19.x"
+          otp-version: "28.x"
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
+        with:
+          toolchain: "1.91.0"
+
+      - name: Compile and test the complete Stack
+        working-directory: checkouts/spectre_ecosystem/integration/stack_tools
+        run: |
+          mix deps.get --check-locked
+          mix compile --warnings-as-errors
+          mix test --max-cases 4
+
   quality:
     name: Format, compile, tests and CLI contracts
     runs-on: ubuntu-24.04
@@ -40,6 +77,9 @@ jobs:
 
       - name: Run tests and coverage contract
         run: mix test --cover
+
+      - name: Verify dependency checkouts offline
+        run: python3 -m unittest discover -s test -p '*_test.py'
 
       - name: Validate registry and executable
         run: |

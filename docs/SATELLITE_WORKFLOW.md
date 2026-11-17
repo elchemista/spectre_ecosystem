@@ -3,9 +3,15 @@
 Non serve un workflow Actions nel repository satellite. Il runner centrale lo
 clona e avvia direttamente i normali comandi Mix.
 
-Il solo contratto speciale è `SPECTRE_PATH`: quando è valorizzata, `mix.exs`
-deve usare quel checkout per la dipendenza `:spectre`; altrimenti deve
-conservare la normale dipendenza Hex.
+Il contratto per il core è `SPECTRE_PATH`: quando è valorizzata, `mix.exs`
+deve usare quel checkout per la dipendenza `:spectre`; altrimenti conserva la
+normale dipendenza Hex. Prima della pubblicazione 0.4, usa l'override con i
+checkout coordinati.
+
+Se la libreria usa altri satelliti, dichiara le dipendenze in `ecosystem.json`
+e accetta anche i relativi override `<NOME_PACCHETTO>_PATH`, per esempio
+`SPECTRE_LEDGER_PATH`. La matrice risolve i loro `default_ref` dal registry;
+non presume che `main` contenga una versione compatibile.
 
 ```elixir
 defp spectre_dep do
@@ -14,7 +20,7 @@ defp spectre_dep do
       {:spectre, path: Path.expand(path, __DIR__), override: true}
 
     _unset ->
-      {:spectre, "~> 0.3.0"}
+      {:spectre, "~> 0.4.0"}
   end
 end
 ```

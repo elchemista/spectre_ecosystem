@@ -160,6 +160,9 @@ defmodule Spectre.Ecosystem.StatusTest do
           "head_sha" => "tested-#{component.name}",
           "github_version" => "0.3.0",
           "spectre_sha" => "tested-spectre",
+          "dependency_sources" => [
+            %{"name" => "spectre_ledger", "sha" => "tested-ledger"}
+          ],
           "duration_ms" => 1_000,
           "run_url" => "https://github.test/ecosystem/runs/10"
         }
@@ -184,6 +187,10 @@ defmodule Spectre.Ecosystem.StatusTest do
     assert beam["head_sha"] == "tested-spectre_beam"
     assert beam["check"]["source"] == "compatibility"
     assert beam["check"]["spectre_sha"] == "tested-spectre"
+
+    assert beam["check"]["dependency_sources"] == [
+             %{"name" => "spectre_ledger", "sha" => "tested-ledger"}
+           ]
   end
 
   test "central results never query GitHub and missing artifacts stay unknown" do

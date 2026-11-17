@@ -100,6 +100,50 @@ defmodule Spectre.Ecosystem.CLITest do
     assert String.trim(names_with_core) == "spectre,spectre_ledger"
   end
 
+  test "the 0.4 matrix preserves frozen dependencies and an explicit core branch override" do
+    assert {:ok, manifest} = Manifest.load(@manifest)
+    core_ref = "topic/compatibility-check"
+
+    matrix =
+      capture_stdout(fn ->
+        assert CLI.run([
+                 "plan",
+                 "--manifest",
+                 @manifest,
+                 "--spectre-ref",
+                 core_ref,
+                 "--packages",
+                 "spectre_lab,spectre_pulse",
+                 "--format",
+                 "github-matrix"
+               ]) == 0
+      end)
+
+    assert {:ok, %{"include" => [lab, pulse]}} = JSON.decode(matrix)
+    assert Enum.all?([lab, pulse], &(&1["spectre_ref"] == core_ref))
+    assert {:ok, lab_package} = Manifest.fetch_package(manifest, "spectre_lab")
+    assert lab["default_ref"] == lab_package.default_ref
+
+    assert [%{"name" => "spectre_ledger", "default_ref" => ledger_ref}] =
+             lab["dependency_sources"]
+
+    assert {:ok, ledger_package} = Manifest.fetch_package(manifest, "spectre_ledger")
+    assert ledger_ref == ledger_package.default_ref
+
+    assert Enum.map(pulse["dependency_sources"], & &1["name"]) ==
+             ~w(spectre_beam spectre_directive spectre_kinetic spectre_lens spectre_mnemonic spectre_prism)
+
+    Enum.each(pulse["dependency_sources"], fn source ->
+      assert {:ok, package} = Manifest.fetch_package(manifest, source["name"])
+      assert source["repository"] == package.repository
+      assert source["default_ref"] == package.default_ref
+      assert source["dependencies"] == package.dependencies
+      assert source["timeout_minutes"] == package.timeout_minutes
+    end)
+
+    refute Enum.any?(pulse["dependency_sources"], &(&1["name"] == "spectre"))
+  end
+
   test "check and dispatch require GitHub authentication before remote work" do
     without_tokens(fn ->
       check_error =

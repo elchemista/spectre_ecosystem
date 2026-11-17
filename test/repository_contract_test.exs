@@ -71,7 +71,24 @@ defmodule Spectre.Ecosystem.RepositoryContractTest do
     assert workflow =~ "repository: ${{ matrix.repository }}"
     assert workflow =~ "SPECTRE_PATH:"
     assert workflow =~ "mix compile --warnings-as-errors"
-    assert workflow =~ "mix test $TEST_ARGS"
+    assert workflow =~ ~s(LIBRARY_NAME: ${{ matrix.name }})
+    assert workflow =~ ~s(if [[ "$LIBRARY_NAME" == "spectre" && "$TEST_ARGS" == "--cover" ]])
+    assert workflow =~ "mix test --cover --export-coverage ram"
+
+    assert workflow =~
+             "SPECTRE_TEST_PROJECTION=1 mix test test/gam --cover --export-coverage projection"
+
+    assert workflow =~ "mix test.coverage"
+    assert workflow =~ ~s(elif [[ "$TEST_ARGS" == "--cover" ]])
+    assert workflow =~ "mix test --cover"
+
+    assert {:ok, manifest} = Manifest.load(Path.join(@root, "ecosystem.json"))
+    assert workflow =~ "default: #{manifest.core.default_ref}"
+
+    assert length(String.split(workflow, "inputs.spectre_ref || '#{manifest.core.default_ref}'")) ==
+             3
+
+    assert workflow =~ "ref: ${{ needs.plan.outputs.spectre_ref }}"
   end
 
   test "development wrapper is executable" do

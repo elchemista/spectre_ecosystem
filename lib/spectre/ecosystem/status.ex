@@ -217,6 +217,7 @@ defmodule Spectre.Ecosystem.Status do
       "profile" => nil,
       "tested_sha" => nil,
       "spectre_sha" => nil,
+      "dependency_sources" => [],
       "duration_ms" => nil,
       "run_url" => nil
     }
@@ -229,6 +230,7 @@ defmodule Spectre.Ecosystem.Status do
       "profile" => result["profile"],
       "tested_sha" => result["head_sha"],
       "spectre_sha" => result["spectre_sha"],
+      "dependency_sources" => result["dependency_sources"] || [],
       "duration_ms" => result["duration_ms"],
       "run_url" => result["run_url"]
     }
