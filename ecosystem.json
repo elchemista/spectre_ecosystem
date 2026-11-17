@@ -78,7 +78,7 @@
     {
       "name": "spectre_mnemonic",
       "repository": "elchemista/spectre_mnemonic",
-      "default_ref": "4243d342bbf3023435f9c24b85161789d9047772",
+      "default_ref": "b32766c105349daab2d19c9118a8fba6220d2c4c",
       "dependencies": [
         "spectre"
       ],
@@ -96,7 +96,7 @@
     {
       "name": "spectre_pulse",
       "repository": "elchemista/spectre_pulse",
-      "default_ref": "c3e6699293d867dd26c70e4ab92b59bb93a32a2d",
+      "default_ref": "04da1b88601ed50aaeb43997deeba7783fa5ac07",
       "dependencies": [
         "spectre",
         "spectre_beam",
