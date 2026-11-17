@@ -1,7 +1,7 @@
 name: Check and publish ecosystem
 run-name: >-
   ecosystem:${{ inputs.campaign_id || format('run-{0}', github.run_id) }}
-  core=${{ inputs.spectre_ref || 'bad658634e905ad8ed79965d8e2f6eeede7d811a' }}
+  core=${{ inputs.spectre_ref || 'affe0b6ee33c957bc9aff9eec70cf7e7c33e80d6' }}
 
 on:
   push:
@@ -20,7 +20,7 @@ on:
       spectre_ref:
         description: Spectre tag, branch or commit to test
         required: false
-        default: bad658634e905ad8ed79965d8e2f6eeede7d811a
+        default: affe0b6ee33c957bc9aff9eec70cf7e7c33e80d6
         type: string
       profile:
         description: Test profile
@@ -71,16 +71,18 @@ jobs:
       - name: Resolve inputs
         id: values
         env:
-          INPUT_REF: ${{ inputs.spectre_ref || 'bad658634e905ad8ed79965d8e2f6eeede7d811a' }}
+          INPUT_REF: ${{ inputs.spectre_ref || 'affe0b6ee33c957bc9aff9eec70cf7e7c33e80d6' }}
           INPUT_PROFILE: ${{ inputs.profile || 'compat' }}
           INPUT_PACKAGES: ${{ inputs.packages || 'all' }}
           INPUT_CAMPAIGN: ${{ inputs.campaign_id }}
         run: |
           campaign_id="${INPUT_CAMPAIGN:-run-${GITHUB_RUN_ID}}"
-          printf 'campaign_id=%s\n' "$campaign_id" >>"$GITHUB_OUTPUT"
-          printf 'spectre_ref=%s\n' "$INPUT_REF" >>"$GITHUB_OUTPUT"
-          printf 'profile=%s\n' "$INPUT_PROFILE" >>"$GITHUB_OUTPUT"
-          printf 'packages=%s\n' "$INPUT_PACKAGES" >>"$GITHUB_OUTPUT"
+          {
+            printf 'campaign_id=%s\n' "$campaign_id"
+            printf 'spectre_ref=%s\n' "$INPUT_REF"
+            printf 'profile=%s\n' "$INPUT_PROFILE"
+            printf 'packages=%s\n' "$INPUT_PACKAGES"
+          } >>"$GITHUB_OUTPUT"
 
       - name: Build matrix
         id: plan
@@ -188,13 +190,22 @@ jobs:
         working-directory: ${{ steps.project.outputs.path }}
         env:
           SPECTRE_PATH: ${{ github.workspace }}/checkouts/spectre
+          LIBRARY_NAME: ${{ matrix.name }}
           TEST_ARGS: ${{ needs.plan.outputs.profile == 'full' && '--cover' || '' }}
         run: |
           started=$(date +%s)
           set +e
           mix deps.get && \
             mix compile --warnings-as-errors && \
-            mix test $TEST_ARGS
+            if [[ "$LIBRARY_NAME" == "spectre" && "$TEST_ARGS" == "--cover" ]]; then
+              mix test --cover --export-coverage ram && \
+                SPECTRE_TEST_PROJECTION=1 mix test test/gam --cover --export-coverage projection && \
+                mix test.coverage
+            elif [[ "$TEST_ARGS" == "--cover" ]]; then
+              mix test --cover
+            else
+              mix test
+            fi
           exit_code=$?
           finished=$(date +%s)
           printf 'duration_ms=%s\n' "$(((finished - started) * 1000))" >>"$GITHUB_OUTPUT"

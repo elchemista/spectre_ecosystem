@@ -7,7 +7,7 @@ La configurazione richiede soltanto GitHub Pages:
 3. in **Build and deployment**, seleziona **GitHub Actions**;
 4. apri **Actions > Check and publish ecosystem**;
 5. premi **Run workflow** lasciando il default `spectre_ref` e `packages: all`
-   per verificare i commit congelati del candidato 0.4.
+   per verificare i commit congelati della linea 0.4.
 
 Per un controllo diverso puoi inserire un branch, tag o SHA del core. I satelliti
 restano quelli fissati in `ecosystem.json`, anche quando cambi questo input.

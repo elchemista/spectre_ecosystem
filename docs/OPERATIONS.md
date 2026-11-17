@@ -12,10 +12,12 @@ Non configurare GitHub App, PAT, repository variable o secret.
 ## Controllo manuale
 
 Apri **Actions > Check and publish ecosystem > Run workflow**. Il default di
-`spectre_ref` è lo SHA del core candidato 0.4; i satelliti e le loro dipendenze
+`spectre_ref` è lo SHA del core 0.4 verificato; i satelliti e le loro dipendenze
 transitive usano i commit completi in `ecosystem.json`. Anche i run pianificati
 selezionano questo insieme congelato. `packages` accetta `all` o nomi separati da
-virgole; `full` aggiunge la coverage ai test di compatibilità.
+virgole; `full` aggiunge la coverage ai test di compatibilità. Per il core,
+aggrega i test in RAM e quelli con proiezione persistita prima di controllare
+la soglia; ogni satellite conserva la propria suite e soglia.
 
 Puoi scegliere un branch, tag o altro SHA come override del core. Questo non
 modifica i pin satellite: per una nuova combinazione aggiorna esplicitamente

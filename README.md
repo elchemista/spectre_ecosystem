@@ -12,7 +12,7 @@ arrivano direttamente dai checkout e dagli artifact prodotti dalla matrice.
 
 ## Compatibilità con la linea 0.4
 
-Il catalogo [`ecosystem.json`](ecosystem.json) congela il candidato 0.4: core e
+Il catalogo [`ecosystem.json`](ecosystem.json) congela la linea 0.4: core e
 nove satelliti puntano a commit Git completi già pubblicati. Anche i default del
 workflow selezionano quel core. Lab usa il Ledger fissato e Pulse riceve i suoi
 satelliti transitivi compatibili, senza richiedere una pubblicazione su Hex.
@@ -124,10 +124,10 @@ Il progetto non ha dipendenze esterne e richiede Erlang/OTP 28+ ed Elixir
 MIX_ENV=prod mix escript.build
 ./spectre-ecosystem validate
 ./spectre-ecosystem list
-./spectre-ecosystem plan --spectre-ref bad658634e905ad8ed79965d8e2f6eeede7d811a --include-core --format github-matrix
+./spectre-ecosystem plan --spectre-ref affe0b6ee33c957bc9aff9eec70cf7e7c33e80d6 --include-core --format github-matrix
 ```
 
-L'esempio usa lo SHA del core candidato. Sostituiscilo con un branch, tag o altro
+L'esempio usa lo SHA del core verificato. Sostituiscilo con un branch, tag o altro
 SHA per una campagna esplicita; i pin dei satelliti restano quelli del catalogo.
 
 Per generare il feed da risultati già raccolti:

@@ -84,8 +84,8 @@ it does not start another Domain or provision an independent mandate. Its state,
 pending requests and checkpoint remain local. The test reads `Server.gam_view`
 through the root consumer and asserts the email and save Acts plus Skill
 invocation Evidence in that one projection. See the [Skill ownership and consent
-contract](https://github.com/elchemista/spectre/blob/bad658634e905ad8ed79965d8e2f6eeede7d811a/docs/SKILLS.md) for the concurrent two-Skill case exercised by the
-[LiveView demo](https://github.com/elchemista/spectre/blob/bad658634e905ad8ed79965d8e2f6eeede7d811a/docs/DEMO.md).
+contract](https://github.com/elchemista/spectre/blob/affe0b6ee33c957bc9aff9eec70cf7e7c33e80d6/docs/SKILLS.md) for the concurrent two-Skill case exercised by the
+[LiveView demo](https://github.com/elchemista/spectre/blob/affe0b6ee33c957bc9aff9eec70cf7e7c33e80d6/docs/DEMO.md).
 
 ## OTP process and CPU profile
 

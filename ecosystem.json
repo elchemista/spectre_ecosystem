@@ -13,7 +13,7 @@
   "core": {
     "name": "spectre",
     "repository": "elchemista/spectre",
-    "default_ref": "bad658634e905ad8ed79965d8e2f6eeede7d811a"
+    "default_ref": "affe0b6ee33c957bc9aff9eec70cf7e7c33e80d6"
   },
   "profiles": [
     "compat",
@@ -23,7 +23,7 @@
     {
       "name": "spectre_beam",
       "repository": "elchemista/spectre_beam",
-      "default_ref": "394987d2537eb30467a7b2f682b1a593138e57c7",
+      "default_ref": "88e8b017ce3d94dd4f0a2d8743ce767e1fe2ff17",
       "dependencies": [
         "spectre"
       ],
@@ -32,7 +32,7 @@
     {
       "name": "spectre_directive",
       "repository": "elchemista/spectre_directive",
-      "default_ref": "8ab5509c2b0c9af3788bab4baed8068ca2da9270",
+      "default_ref": "3972944a0d42720896b3ca2a6ef68633a4fe1bac",
       "dependencies": [
         "spectre"
       ],
@@ -41,7 +41,7 @@
     {
       "name": "spectre_kinetic",
       "repository": "elchemista/spectre_kinetic",
-      "default_ref": "cadeb7fa68f481cd68315c3a968e3293b5301809",
+      "default_ref": "30896afb013eac6c3230465a24dcc15fef800750",
       "dependencies": [
         "spectre"
       ],
@@ -50,7 +50,7 @@
     {
       "name": "spectre_lab",
       "repository": "elchemista/spectre_lab",
-      "default_ref": "9b1f61507e7696ab696874f55d7375698c63bd74",
+      "default_ref": "a38ad5e2c16659b5cbbcce34b6156882941552ea",
       "dependencies": [
         "spectre",
         "spectre_ledger"
@@ -60,7 +60,7 @@
     {
       "name": "spectre_ledger",
       "repository": "elchemista/spectre_ledger",
-      "default_ref": "00d9c88aed14e65455d09112e14c78f81bfe2612",
+      "default_ref": "77cbe94a33ce29c678ec9c2f83fc42fa90b581e3",
       "dependencies": [
         "spectre"
       ],
@@ -69,7 +69,7 @@
     {
       "name": "spectre_lens",
       "repository": "elchemista/spectre_lens",
-      "default_ref": "c2d1449b09bf67e8a6d309461fef29e763fb1aa3",
+      "default_ref": "e264af2fd48ac45976f2d3c7a6eb62dea4e41f9a",
       "dependencies": [
         "spectre"
       ],
@@ -78,7 +78,7 @@
     {
       "name": "spectre_mnemonic",
       "repository": "elchemista/spectre_mnemonic",
-      "default_ref": "a357262817ab1f124589bea62f8be1b6ed22297f",
+      "default_ref": "9dc95657976254c14189af63fa651b5ab5726a6e",
       "dependencies": [
         "spectre"
       ],
@@ -87,7 +87,7 @@
     {
       "name": "spectre_prism",
       "repository": "elchemista/spectre_prism",
-      "default_ref": "54ea7c4ff82b9d7e60fb8eeec282987ae69cc7bf",
+      "default_ref": "877a252bd539927ed652ad2d7876e9b6f961a6ae",
       "dependencies": [
         "spectre"
       ],
@@ -96,7 +96,7 @@
     {
       "name": "spectre_pulse",
       "repository": "elchemista/spectre_pulse",
-      "default_ref": "578d406d3d1631f063647f934c787df4a2ab8511",
+      "default_ref": "91fc9d66cb82183f213afd43aeefb4728dffeeb7",
       "dependencies": [
         "spectre",
         "spectre_beam",
