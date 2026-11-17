@@ -32,7 +32,7 @@
     {
       "name": "spectre_directive",
       "repository": "elchemista/spectre_directive",
-      "default_ref": "83eb717cda08f1392555300def8c62820e52d14f",
+      "default_ref": "e9f206592a9a8c63b2d59595a33f07dc50803c39",
       "dependencies": [
         "spectre"
       ],
@@ -78,7 +78,7 @@
     {
       "name": "spectre_mnemonic",
       "repository": "elchemista/spectre_mnemonic",
-      "default_ref": "b32766c105349daab2d19c9118a8fba6220d2c4c",
+      "default_ref": "17a021e38c78adebf2e1e3dfe1eab2ff1bcc06f9",
       "dependencies": [
         "spectre"
       ],
@@ -96,7 +96,7 @@
     {
       "name": "spectre_pulse",
       "repository": "elchemista/spectre_pulse",
-      "default_ref": "2b37716c347e843df239c3d7b3a095bb01e8e7e6",
+      "default_ref": "6322be2e455082f3f0f505c44213e38e76980c84",
       "dependencies": [
         "spectre",
         "spectre_beam",
