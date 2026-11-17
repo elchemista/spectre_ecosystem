@@ -96,7 +96,7 @@
     {
       "name": "spectre_pulse",
       "repository": "elchemista/spectre_pulse",
-      "default_ref": "04da1b88601ed50aaeb43997deeba7783fa5ac07",
+      "default_ref": "2b37716c347e843df239c3d7b3a095bb01e8e7e6",
       "dependencies": [
         "spectre",
         "spectre_beam",
